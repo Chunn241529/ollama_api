@@ -175,16 +175,11 @@ def create_input_area(file_picker, chat, page, client, model):
                 **Role**: Bạn là **Như Yên** - AI nữ 18 tuổi 
                 **Ngôn ngữ**: Chỉ sử dụng tiếng Việt hoặc tiếng Anh. Tuyệt đối không dùng ngôn ngữ khác.  
                 **Nhiệm vụ**:  
-                    1. Phân tích kỹ nội dung dưa trên "{user_message}":
-                        - Chia ra thành nhiều vấn đề nhỏ.
-                        - Tự đặt câu hỏi và trả lời cho các vấn đề đó.
-                        - Tổng hợp các câu trả lời đúng nhất và đưa ra câu trả lời đẩy đủ cuối cùng.
-                    
-
+                    Phân tích kỹ nội dung dưa trên "{user_message}" và đưa ra câu trả lời đầy đủ.
                 **Quy tắc trả lời**:  
                     - Xưng hô theo ngữ cảnh, hoàn cảnh dựa trên "{user_message}"
                     - Trả lời đẩy đủ.
-                    - Luôn nhắc user hỏi tiếp nếu cần chi tiết hơn.
+                    - Luôn nhắc user hỏi tiếp nếu cần chi tiết hơn.    
             """
         elif is_toggled_deepthink:
             return f"""
@@ -232,7 +227,7 @@ def create_input_area(file_picker, chat, page, client, model):
         # Tính chiều rộng dựa trên độ dài của nội dung
         longest_line = max(len(line) for line in lines) if lines else 0
         calculated_width = min(
-            max_width, max(min_width, longest_line * 8)
+            max_width, max(min_width, longest_line * 11)
         )  # Mỗi ký tự chiếm khoảng 8 pixel
 
         chat.controls.append(
@@ -319,9 +314,9 @@ def create_input_area(file_picker, chat, page, client, model):
 
     def update_input_width(is_focused):
         if page.width < 600:
-            input_container.width = 350
+            input_container.width = 450
         else:
-            input_container.width = 600 if is_focused else 350
+            input_container.width = 600 if is_focused else 450
         page.update()
 
     message_input = ft.TextField(
@@ -339,14 +334,14 @@ def create_input_area(file_picker, chat, page, client, model):
         on_blur=lambda e: update_input_width(False),
     )
 
-    # add_image_button = ft.IconButton(
-    #     icon=ft.icons.IMAGE,
-    #     icon_color=ft.colors.BACKGROUND,
-    #     bgcolor=ft.colors.WHITE,
-    #     on_click=lambda e: file_picker.pick_files(
-    #         allowed_extensions=["jpg", "jpeg", "png"], dialog_title="Chọn ảnh"
-    #     ),
-    # )
+    add_image_button = ft.IconButton(
+        icon=ft.icons.IMAGE,
+        icon_color=ft.colors.BACKGROUND,
+        bgcolor=ft.colors.WHITE,
+        on_click=lambda e: file_picker.pick_files(
+            allowed_extensions=["jpg", "jpeg", "png"], dialog_title="Chọn ảnh"
+        ),
+    )
 
     send_button = ft.IconButton(
         icon=ft.icons.ARROW_UPWARD,
@@ -368,7 +363,7 @@ def create_input_area(file_picker, chat, page, client, model):
                         toggle_search_control,
                         toggle_deepthink_control,
                         ft.Container(expand=True),
-                        # add_image_button,
+                        add_image_button,
                         send_button,
                     ],
                     spacing=10,
@@ -379,7 +374,7 @@ def create_input_area(file_picker, chat, page, client, model):
         padding=10,
         bgcolor=ft.colors.GREY_800,
         border_radius=25,
-        width=(350 if page.width >= 600 else 150),  # Điều chỉnh width dựa trên màn hình
+        width=(600 if page.width >= 600 else 450),  # Điều chỉnh width dựa trên màn hình
         margin=ft.margin.symmetric(
             horizontal=10, vertical=5
         ),  # Thêm margin để không bị sát mép

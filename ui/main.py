@@ -13,7 +13,7 @@ from components.chat.test1 import create_input_area
 client = OpenAI(base_url=f"http://localhost:11434/v1", api_key="ollama")
 messages = []
 selected_image = None
-model = "deepseek-coder-v2:latest"  # Model mặc định
+model = "chunn1.0:latest"  # Model mặc định
 
 # Biến toàn cục để lưu token
 TOKEN = None

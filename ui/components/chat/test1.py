@@ -2,6 +2,8 @@ import webbrowser
 import flet as ft
 from sub_func.search import search_duckduckgo_unlimited, extract_search_info
 from components.chat.utils import split_text, contains_search_keywords
+from helper.respository.repo_client import RepoClient
+
 
 selected_image = None
 is_toggled_search = False
@@ -11,7 +13,13 @@ barin_think_answer = []
 messages = []
 
 
-def create_input_area(file_picker, chat, page, client, model):
+def create_input_area(file_picker, chat, page, client, model, chat_id):
+    repo = RepoClient("")
+
+    def get_history_chat():
+        history = repo.get_brain_history_chat(chat_id)
+        return history
+
     def toggle_search(e):
         global is_toggled_search
         is_toggled_search = not is_toggled_search

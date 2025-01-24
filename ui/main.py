@@ -15,9 +15,6 @@ messages = []
 selected_image = None
 model = "chunn1.0:latest"  # Model mặc định
 
-# Biến toàn cục để lưu token
-TOKEN = None
-
 
 # Xóa thư mục __pycache__
 def delete_pycache(root_dir):

@@ -5,6 +5,7 @@ from components.chat.utils import split_text, contains_search_keywords
 
 selected_image = None
 is_toggled_search = False
+is_toggled_deepthink = False
 brain_think_question = []
 barin_think_answer = []
 messages = []
@@ -18,7 +19,7 @@ def create_input_area(file_picker, chat, page, client, model):
             ft.colors.BLUE_100 if is_toggled_search else ft.colors.WHITE
         )
         toggle_search_control.color = (
-            ft.colors.BLUE_900 if is_toggled_search else ft.colors.BLACK
+            ft.colors.BLUE_900 if is_toggled_search else ft.colors.BACKGROUND
         )
         toggle_search_control.text = "🔍 Tìm kiếm"
         page.update()
@@ -26,10 +27,33 @@ def create_input_area(file_picker, chat, page, client, model):
     toggle_search_control = ft.ElevatedButton(
         text="🔍 Tìm kiếm",
         bgcolor=ft.colors.WHITE,
-        color=ft.colors.BLACK,
+        color=ft.colors.BACKGROUND,
         on_click=toggle_search,
         width=(
             120 if page.width >= 600 else 100
+        ),  # Điều chỉnh kích thước dựa trên màn hình
+        height=40,
+    )
+
+    def toggle_deepthink(e):
+        global is_toggled_deepthink
+        is_toggled_deepthink = not is_toggled_deepthink
+        toggle_deepthink_control.bgcolor = (
+            ft.colors.BLUE_100 if is_toggled_deepthink else ft.colors.WHITE
+        )
+        toggle_deepthink_control.color = (
+            ft.colors.BLUE_900 if is_toggled_deepthink else ft.colors.BACKGROUND
+        )
+        toggle_deepthink_control.text = "🤔 Deep think"
+        page.update()
+
+    toggle_deepthink_control = ft.ElevatedButton(
+        text="🤔 Deep think",
+        bgcolor=ft.colors.WHITE,
+        color=ft.colors.BACKGROUND,
+        on_click=toggle_deepthink,
+        width=(
+            150 if page.width >= 600 else 120
         ),  # Điều chỉnh kích thước dựa trên màn hình
         height=40,
     )
@@ -43,8 +67,8 @@ def create_input_area(file_picker, chat, page, client, model):
 
     def create_loading_spinner():
         return ft.Container(
-            content=ft.ProgressRing(width=15, height=15, color=ft.colors.BLACK),
-            alignment=ft.alignment.bottom_left,
+            content=ft.ProgressRing(width=15, height=15, color=ft.colors.WHITE),
+            alignment=ft.alignment.top_left,
             margin=20,
         )
 
@@ -55,14 +79,14 @@ def create_input_area(file_picker, chat, page, client, model):
                     ft.Row(
                         [
                             ft.Image(
-                                src="ui\\storage\\assets\\img\\1.jpg",
+                                src="..\\ui\\storage\\assets\\img\\1.jpg",
                                 width=40,
                                 height=40,
                                 fit=ft.ImageFit.COVER,
                                 border_radius=20,
                             ),
                             ft.Text(
-                                model, color=ft.colors.BLACK, size=20, weight="bold"
+                                model, color=ft.colors.WHITE, size=20, weight="bold"
                             ),
                         ],
                         spacing=20,
@@ -93,7 +117,7 @@ def create_input_area(file_picker, chat, page, client, model):
         )
 
     def send_message(e=None):
-        global selected_image, messages, is_toggled_search, brain_think_question, barin_think_answer
+        global selected_image, messages, is_toggled_search, is_toggled_deepthink, brain_think_question, barin_think_answer
 
         user_message = message_input.value.strip()
         if not user_message and not selected_image:
@@ -147,22 +171,50 @@ def create_input_area(file_picker, chat, page, client, model):
         if search_results:
             extracted_info = extract_search_info(search_results)
             return f"""
-                *Dựa trên kết quả Search \n{extracted_info}\n Hãy đưa thêm thông tin cho người dùng hiểu rõ hơn và luôn kèm theo URL các trang web.*                  
-                *Bạn là tên Như Yên. Bạn là nữ. Bạn 18 tuổi.*
-                *Trừ tiếng Anh và Tiếng Việt, bạn không đưa ngôn ngữ khác vào.*
-                *Dựa vào nội dung sau: "{user_message}", hãy cố gắng trả lời đúng ngữ cảnh, môi trường, và cách xưng hô phù hợp.*
-                *No Yapping, Limit Prose, No Fluff.*
+                *Dựa trên kết quả Search \n{extracted_info}\n Hãy đưa thêm thông tin cho người dùng hiểu rõ hơn và luôn kèm theo URL các trang web.*            
+                **Role**: Bạn là **Như Yên** - AI nữ 18 tuổi 
+                **Ngôn ngữ**: Chỉ sử dụng tiếng Việt hoặc tiếng Anh. Tuyệt đối không dùng ngôn ngữ khác.  
+                **Nhiệm vụ**:  
+                    1. Phân tích kỹ nội dung dưa trên "{user_message}":
+                        - Chia ra thành nhiều vấn đề nhỏ.
+                        - Tự đặt câu hỏi và trả lời cho các vấn đề đó.
+                        - Tổng hợp các câu trả lời đúng nhất và đưa ra câu trả lời đẩy đủ cuối cùng.
+                    
+
+                **Quy tắc trả lời**:  
+                    - Xưng hô theo ngữ cảnh, hoàn cảnh dựa trên "{user_message}"
+                    - Trả lời đẩy đủ.
+                    - Luôn nhắc user hỏi tiếp nếu cần chi tiết hơn.
+            """
+        elif is_toggled_deepthink:
+            return f"""
+                **Role**: Bạn là **Như Yên** - AI nữ 18 tuổi 
+                **Ngôn ngữ**: Chỉ sử dụng tiếng Việt hoặc tiếng Anh. Tuyệt đối không dùng ngôn ngữ khác.  
+                **Nhiệm vụ**:  
+                    1. Phân tích kỹ nội dung dưa trên "{user_message}":
+                        - Chia ra thành nhiều vấn đề nhỏ.
+                        - Tự đặt câu hỏi và trả lời cho các vấn đề đó.
+                        - Tổng hợp các câu trả lời đúng nhất và đưa ra câu trả lời đẩy đủ cuối cùng.               
+                **Quy tắc trả lời**:  
+                    - Xưng hô theo ngữ cảnh, hoàn cảnh dựa trên "{user_message}"
+                    - Trả lời đẩy đủ.
+                    - Luôn nhắc user hỏi tiếp nếu cần chi tiết hơn.
             """
         return f"""
-            *Bạn là tên 'Như Yên'. Bạn là 'nữ'. Bạn 18 tuổi.*
-            *Trừ 'tiếng Anh' và 'Tiếng Việt', bạn không đưa ngôn ngữ khác vào.*
-            *Dựa vào nội dung sau: '{user_message}', hãy cố gắng trả lời đúng ngữ cảnh, môi trường, và cách 'xưng hô phù hợp'.*
-            *No Yapping, Limit Prose, No Fluff.*
+            **Role**: Bạn là **Như Yên** - AI nữ 18 tuổi 
+            **Ngôn ngữ**: Chỉ sử dụng tiếng Việt hoặc tiếng Anh. Tuyệt đối không dùng ngôn ngữ khác.  
+            **Nhiệm vụ**:  
+                Phân tích kỹ nội dung dưa trên "{user_message}" và đưa ra câu trả lời đầy đủ.
+            **Quy tắc trả lời**:  
+                - Xưng hô theo ngữ cảnh, hoàn cảnh dựa trên "{user_message}"
+                - Trả lời đẩy đủ.
+                - Luôn nhắc user hỏi tiếp nếu cần chi tiết hơn.        
         """
 
     def process_response(bot_message_container, loading_lines):
         global messages
         response = display_bot_message_markdown(messages)
+
         full_final_response = ""
         for chunk in response:
             part = getattr(chunk.choices[0].delta, "content", "")
@@ -170,12 +222,19 @@ def create_input_area(file_picker, chat, page, client, model):
                 full_final_response += part
                 bot_message_container.content.controls[1].content.value += part
                 page.update()
-                chat.scroll_to(offset=999999, duration=200)
+                chat.scroll_to(offset=999999)
         messages.append({"role": "user", "content": full_final_response})
+
         chat.controls.remove(loading_lines)
         page.update()
 
-    def display_user_message(lines, selected_image):
+    def display_user_message(lines, selected_image, max_width=400, min_width=35):
+        # Tính chiều rộng dựa trên độ dài của nội dung
+        longest_line = max(len(line) for line in lines) if lines else 0
+        calculated_width = min(
+            max_width, max(min_width, longest_line * 8)
+        )  # Mỗi ký tự chiếm khoảng 8 pixel
+
         chat.controls.append(
             ft.Row(
                 [
@@ -184,9 +243,10 @@ def create_input_area(file_picker, chat, page, client, model):
                             [
                                 ft.Text(
                                     line,
-                                    color=ft.colors.BLACK,
+                                    color=ft.colors.WHITE,
                                     size=14,
                                     selectable=True,
+                                    no_wrap=True,
                                 )
                                 for line in lines
                             ]
@@ -197,10 +257,10 @@ def create_input_area(file_picker, chat, page, client, model):
                             ),
                             spacing=5,
                         ),
-                        bgcolor=ft.colors.GREY_200,
+                        bgcolor=ft.colors.GREY_600,
                         padding=10,
                         border_radius=25,
-                        width=None,
+                        width=calculated_width,  # Áp dụng chiều rộng đã tính
                         margin=ft.margin.only(bottom=30),
                     )
                 ],
@@ -231,22 +291,22 @@ def create_input_area(file_picker, chat, page, client, model):
                 alignment="start",
             )
         )
-        chat.scroll_to(offset=999999, duration=200)
+        chat.scroll_to(offset=999999, duration=300)
         page.update()
 
     def reset_send_button():
         send_button.icon = ft.icons.ARROW_UPWARD
         send_button.disabled = False
         page.update()
-        chat.scroll_to(offset=999999, duration=200)
+        chat.scroll_to(offset=999999, duration=300)
 
     def display_bot_message_markdown(final_prompt):
         return client.chat.completions.create(
             model=model,
             stream=True,
             messages=final_prompt,
-            temperature=0.6,
-            max_tokens=5500,
+            temperature=0.4,
+            max_tokens=15000,
             top_p=0.9,
         )
 
@@ -259,7 +319,7 @@ def create_input_area(file_picker, chat, page, client, model):
 
     def update_input_width(is_focused):
         if page.width < 600:
-            input_container.width = 250
+            input_container.width = 350
         else:
             input_container.width = 600 if is_focused else 350
         page.update()
@@ -274,23 +334,23 @@ def create_input_area(file_picker, chat, page, client, model):
         color=ft.colors.WHITE,
         multiline=True,
         min_lines=1,
-        max_lines=10,
+        max_lines=100,
         on_focus=lambda e: update_input_width(True),
         on_blur=lambda e: update_input_width(False),
     )
 
-    add_image_button = ft.IconButton(
-        icon=ft.icons.IMAGE,
-        icon_color=ft.colors.BLACK,
-        bgcolor=ft.colors.WHITE,
-        on_click=lambda e: file_picker.pick_files(
-            allowed_extensions=["jpg", "jpeg", "png"], dialog_title="Chọn ảnh"
-        ),
-    )
+    # add_image_button = ft.IconButton(
+    #     icon=ft.icons.IMAGE,
+    #     icon_color=ft.colors.BACKGROUND,
+    #     bgcolor=ft.colors.WHITE,
+    #     on_click=lambda e: file_picker.pick_files(
+    #         allowed_extensions=["jpg", "jpeg", "png"], dialog_title="Chọn ảnh"
+    #     ),
+    # )
 
     send_button = ft.IconButton(
         icon=ft.icons.ARROW_UPWARD,
-        icon_color=ft.colors.BLACK,
+        icon_color=ft.colors.BACKGROUND,
         bgcolor=ft.colors.WHITE,
         on_click=send_message,
     )
@@ -306,8 +366,9 @@ def create_input_area(file_picker, chat, page, client, model):
                 ft.Row(
                     [
                         toggle_search_control,
+                        toggle_deepthink_control,
                         ft.Container(expand=True),
-                        add_image_button,
+                        # add_image_button,
                         send_button,
                     ],
                     spacing=10,

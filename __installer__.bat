@@ -53,7 +53,6 @@ IF NOT EXIST requirements.txt (
         echo protobuf
         echo tqdm
         echo gfpgan
-        echo werkzeug
         echo schedule
         echo markdown
         echo pygments
@@ -61,8 +60,10 @@ IF NOT EXIST requirements.txt (
         echo python-multipart
         echo jwt
         echo PyJWT
-        echo langchain
-        echo langchain_ollama
+        echo httpx
+        echo aiohttp
+        echo passlib
+        echo argon2_cffi
     ) > requirements.txt
 ) ELSE (
     echo requirements.txt already exists.

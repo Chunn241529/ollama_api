@@ -1,19 +1,25 @@
+# main.py
 import os
 import shutil
 import flet as ft
 from openai import OpenAI
+from components.authentication.login import create_login_page
+from components.authentication.register import create_register_page
 from components.chat.header import create_header
 from components.chat.chat import create_chat
 from components.chat.test1 import create_input_area
-import json
 
 # Cấu hình API key của OpenAI (thay thế bằng API key thực)
 client = OpenAI(base_url=f"http://localhost:11434/v1", api_key="ollama")
 messages = []
 selected_image = None
-model = "llama3.2:3b"
+model = "deepseek-coder-v2:latest"  # Model mặc định
+
+# Biến toàn cục để lưu token
+TOKEN = None
 
 
+# Xóa thư mục __pycache__
 def delete_pycache(root_dir):
     for dirpath, dirnames, _ in os.walk(root_dir):
         if "__pycache__" in dirnames:
@@ -22,72 +28,105 @@ def delete_pycache(root_dir):
             print(f"Deleted: {pycache_path}")
 
 
-# Xóa thư mục __pycache__
 delete_pycache(os.getcwd())
 
 
-def load_data():
-    try:
-        with open("data.json", "r") as file:
-            data = json.load(file)
-            return data
-    except FileNotFoundError:
-        return {}
+# Tạo giao diện dashboard (ChunGPT)
+def create_dashboard_page(page):
+    # Tạo FilePicker
+    file_picker = ft.FilePicker()
+    page.overlay.append(file_picker)
+
+    # Biến toàn cục để lưu giá trị model
+    global model
+
+    # Tham chiếu đến input_area để cập nhật khi model thay đổi
+    input_area_ref = ft.Ref[ft.Column]()
+
+    def update_model(new_model):
+        # Cập nhật giá trị model
+        global model
+        model = new_model
+        print(f"Model đã được cập nhật thành: {model}")
+
+        # Cập nhật lại input_area với model mới
+        input_area_ref.current.controls = [
+            create_input_area(file_picker, chat, page, client, model)
+        ]
+        input_area_ref.current.update()
+
+    # Tạo các component
+    header = create_header(update_model)
+    chat = create_chat()
+    input_area = create_input_area(file_picker, chat, page, client, model)
+
+    return ft.Column(
+        [
+            header,
+            chat,
+            ft.Row(
+                ref=input_area_ref,
+                controls=[input_area],
+                alignment=ft.MainAxisAlignment.CENTER,
+                width=(700 if page.window.width > 600 else "100%"),
+            ),
+        ],
+        alignment=ft.MainAxisAlignment.CENTER,
+        horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+        expand=True,
+        width=(700 if page.window.width > 600 else "100%"),
+    )
 
 
-def save_data(data):
-    with open("data.json", "w") as file:
-        json.dump(data, file)
-
-
+# Hàm chính
 def main(page: ft.Page):
-    page.theme_mode = ft.ThemeMode.LIGHT
+    page.theme_mode = ft.ThemeMode.DARK
     page.title = "ChunGPT"
-    page.horizontal_alignment = "center"
+    page.vertical_alignment = ft.MainAxisAlignment.CENTER
+    page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.padding = 10
-
-    # Thêm sự kiện on_tap cho page
 
     # Điều chỉnh kích thước cửa sổ dựa trên kích thước màn hình
     if page.width < 600:  # Nếu màn hình nhỏ hơn 600px (điện thoại)
         page.window_width = 400
         page.window_height = 800
     else:  # Nếu màn hình lớn hơn hoặc bằng 600px (máy tính)
-        page.window_width = 1280
-        page.window_height = 720
+        page.window_width = 500
+        page.window_height = 700
 
-    # Tạo FilePicker
-    file_picker = ft.FilePicker()
-    page.overlay.append(file_picker)
+    def route_change(route):
+        page.views.clear()
+        if page.route == "/login":
+            # Căn giữa trang đăng nhập
+            login_page = ft.Column(
+                [create_login_page(page)],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                expand=True,
+            )
+            page.views.append(ft.View("/login", [login_page]))
+        elif page.route == "/register":
+            # Căn giữa trang đăng ký
+            register_page = ft.Column(
+                [create_register_page(page)],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                expand=True,
+            )
+            page.views.append(ft.View("/register", [register_page]))
+        elif page.route == "/chat":
+            # Căn giữa trang chat (dashboard)
+            chat_page = ft.Column(
+                [create_dashboard_page(page)],
+                alignment=ft.MainAxisAlignment.CENTER,
+                horizontal_alignment=ft.CrossAxisAlignment.CENTER,
+                expand=True,
+            )
+            page.views.append(ft.View("/chat", [chat_page]))
+        page.update()
 
-    # Tạo các component
-    header = create_header()
-    chat = create_chat()
-    input_area = create_input_area(file_picker, chat, page, client, model)
-
-    # Lấy dữ liệu từ tệp tin JSON
-    data = load_data()
-
-    # Tạo giao diện
-    page.add(
-        ft.Column(
-            [
-                header,
-                chat,
-                ft.Row(
-                    [input_area],
-                    alignment=ft.MainAxisAlignment.CENTER,
-                    width=(
-                        700 if page.window.width > 600 else "100%"
-                    ),  # Đặt width thành 100% để responsive  # Đặt width thành 100% để responsive
-                ),
-            ],
-            expand=True,
-            width=(
-                700 if page.window.width > 600 else "100%"
-            ),  # Đặt width thành 100% để responsive
-        )
-    )
+    page.on_route_change = route_change
+    page.go("/login")  # Mặc định mở trang đăng nhập
 
 
 # Chạy ứng dụng

@@ -55,7 +55,7 @@ def create_dashboard_page(page):
     # Tạo các component
     header = create_header(update_model)
     chat = create_chat()
-    input_area = create_input_area(file_picker, chat, page, client, model)
+    input_area = create_input_area(file_picker, chat, page, client, model, chat_id=1)
 
     return ft.Column(
         [

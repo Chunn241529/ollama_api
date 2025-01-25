@@ -1,6 +1,5 @@
 __pycache__
 .venv
-helper
 server.sqlite3
 test.py
 requirements.txt

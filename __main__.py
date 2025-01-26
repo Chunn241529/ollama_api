@@ -2,9 +2,10 @@ import os
 import shutil
 import uvicorn
 from fastapi import FastAPI
-from api.chat import app as chat_app
-from api.auth import app as auth_app
 from fastapi.middleware.cors import CORSMiddleware
+from api.auth import router as auth_router
+from api.chat import router as chat_router
+
 
 def delete_pycache(root_dir):
     for dirpath, dirnames, _ in os.walk(root_dir):
@@ -12,6 +13,7 @@ def delete_pycache(root_dir):
             pycache_path = os.path.join(dirpath, "__pycache__")
             shutil.rmtree(pycache_path)
             print(f"Deleted: {pycache_path}")
+
 
 # Tạo ứng dụng FastAPI chính
 app = FastAPI()
@@ -25,9 +27,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount các ứng dụng con
-app.mount("/chat", chat_app)
-app.mount("/auth", auth_app)
+# Thêm các router vào ứng dụng chính
+app.include_router(auth_router, prefix="/auth")
+app.include_router(chat_router, prefix="/chat")
 
 if __name__ == "__main__":
     # Xóa thư mục __pycache__

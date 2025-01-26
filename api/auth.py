@@ -1,5 +1,5 @@
 from typing import List
-from fastapi import FastAPI, HTTPException, Depends, Query, Response, Request
+from fastapi import APIRouter, FastAPI, HTTPException, Depends, Query, Response, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from pydantic import BaseModel
 from datetime import datetime, timedelta
@@ -13,7 +13,8 @@ from helper.respository.repo_server import (
     verify_password,
 )
 
-app = FastAPI()
+router = APIRouter()
+
 
 # Khóa bí mật để ký JWT
 SECRET_KEY = "chungpt_2401"
@@ -54,7 +55,7 @@ def create_access_token(data: dict, expires_delta: timedelta):
     return encoded_jwt
 
 
-@app.post("/register")
+@router.post("/register")
 def register_user(user: UserRegistration):
     """
     Register a new user. Check if username or email already exists.
@@ -68,8 +69,8 @@ def register_user(user: UserRegistration):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.post("/login")
-def login_user(credentials: UserLogin, response: Response):
+@router.post("/login")
+def login_user(credentials: UserLogin):
     user = get_user_by_username_or_email(credentials.username_or_email)
     if user and verify_password(credentials.password, user[0]):
         # Tạo JWT
@@ -78,7 +79,6 @@ def login_user(credentials: UserLogin, response: Response):
             data={"sub": user[0]}, expires_delta=access_token_expires
         )
 
-        # Trả về JWT và db_path trong response
         return {
             "access_token": access_token,
             "token_type": "bearer",
@@ -89,7 +89,27 @@ def login_user(credentials: UserLogin, response: Response):
         )
 
 
-@app.get("/db")
+@router.post("/token")
+def login_user(credentials: UserLogin):
+    user = get_user_by_username_or_email(credentials.username_or_email)
+    if user and verify_password(credentials.password, user[0]):
+        # Tạo JWT
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        access_token = create_access_token(
+            data={"sub": user[0]}, expires_delta=access_token_expires
+        )
+
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+        }
+    else:
+        raise HTTPException(
+            status_code=401, detail="Invalid username/email or password."
+        )
+
+
+@router.get("/db")
 def get_db_path(
     username_or_email: str = Query(..., description="Username or email of the user")
 ):
@@ -101,7 +121,7 @@ def get_db_path(
     return {"db_path": db_path[0]}
 
 
-@app.get("/users", response_model=List[UserResponse])
+@router.get("/users", response_model=List[UserResponse])
 def get_users(request: Request):
     # Kiểm tra JWT để xác thực người dùng
     token = request.headers.get("Authorization")
@@ -131,13 +151,13 @@ def get_users(request: Request):
     ]
 
 
-@app.delete("/users/{username}")
+@router.delete("/users/{username}")
 def delete_user_api(username: str):
     delete_user(username)
     return {"message": f"User '{username}' deleted successfully."}
 
 
-@app.post("/logout")
+@router.post("/logout")
 def logout_user(response: Response):
     # Xóa cookie khi đăng xuất (nếu có)
     response.delete_cookie(key="username")

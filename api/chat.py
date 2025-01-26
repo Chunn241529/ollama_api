@@ -1,10 +1,10 @@
 import subprocess
 import aiohttp
-from fastapi import FastAPI, HTTPException, Query, Depends
+from fastapi import APIRouter, FastAPI, HTTPException, Query, Depends
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
 import asyncio
-from fastapi.security import OAuth2PasswordBearer
+from fastapi.security import HTTPBearer
 import jwt  # Sử dụng PyJWT
 
 from helper.respository.repo_client import RepositoryClient
@@ -15,10 +15,10 @@ from ui.components.chat.share_data import shared_data
 
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 
-app = FastAPI()
+router = APIRouter()
 
-# Sử dụng OAuth2PasswordBearer để xác thực token
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+# Sử dụng HTTPBearer để xác thực token
+oauth2_scheme = HTTPBearer()
 
 # Khóa bí mật để giải mã JWT
 SECRET_KEY = "chungpt_2401"
@@ -28,7 +28,7 @@ ALGORITHM = "HS256"
 async def get_repo(token: str = Depends(oauth2_scheme)):
     try:
         # Giải mã JWT để lấy username
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token.credentials, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(
@@ -50,7 +50,7 @@ async def get_repo(token: str = Depends(oauth2_scheme)):
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         # Giải mã JWT để lấy username
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token.credentials, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:
             raise HTTPException(
@@ -63,7 +63,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             raise HTTPException(status_code=404, detail="User not found")
 
         # Khởi tạo RepositoryClient
-        repo = RepositoryClient(db_path[0])
+        repo = RepositoryClient(db_path)
         return {"username": username, "repo": repo}
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Invalid token")
@@ -76,7 +76,7 @@ default_custom_ai = """
     Bạn nhiệt huyết và luôn cố gắng thực hiện theo yêu cầu của tôi hết mình và đầy đủ.
     **Trừ tiếng Anh và Tiếng Việt, bạn không đưa ngôn ngữ khác vào.**
     Hãy cố gắng xưng hô cho đúng.
-    **No Yapping, Limit Prose, No Fluff.**
+    **No Yroutering, Limit Prose, No Fluff.**
 """
 
 
@@ -107,27 +107,34 @@ def get_available_models():
         return []
 
 
-@app.get("/models")
-async def models():
+@router.get("/models")
+async def models(current_user: dict = Depends(get_current_user)):
     models = get_available_models()
     return {"models": models}
 
 
-@app.post("/create-chat")
-async def create_chat(request: ManagerChat, repo: RepositoryClient = Depends(get_repo)):
+@router.post("/create-chat")
+async def create_chat(
+    request: ManagerChat, current_user: dict = Depends(get_current_user)
+):
     custom_ai = request.custom_ai
-    chat_ai_id = repo.create_chat_ai(custom_ai)
+    repo = current_user["repo"]
+    chat_ai_id = repo.insert_chat_ai(custom_ai)
     return {"chat_ai_id": chat_ai_id, "custom_ai": custom_ai}
 
 
-@app.get("/get-chat")
-async def get_chat(chat_ai_id: int, repo: RepositoryClient = Depends(get_repo)):
+@router.get("/get-chat")
+async def get_chat(chat_ai_id: int, current_user: dict = Depends(get_current_user)):
+    repo = current_user["repo"]
     chat_ai = repo.get_chat_ai(chat_ai_id)
     return chat_ai
 
 
-@app.get("/get-history-chat")
-async def get_history_chat(chat_ai_id: int, repo: RepositoryClient = Depends(get_repo)):
+@router.get("/history")
+async def get_history_chat(
+    chat_ai_id: int, current_user: dict = Depends(get_current_user)
+):
+    repo = current_user["repo"]
     history_chat = repo.get_brain_history_chat(chat_ai_id)
     return history_chat
 
@@ -152,7 +159,7 @@ async def stream_llama_response(session, model, messages):
 
 
 # Endpoint để xử lý chat
-@app.post("/send")
+@router.post("/send")
 async def chat(
     chat_request: ChatRequest, current_user: dict = Depends(get_current_user)
 ):

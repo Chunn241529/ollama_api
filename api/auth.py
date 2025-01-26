@@ -1,6 +1,6 @@
 from typing import List
-from fastapi import APIRouter, FastAPI, HTTPException, Depends, Query, Response, Request
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi import APIRouter, FastAPI, HTTPException, Depends, Query, Request, Response
+from fastapi.security import HTTPBearer
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import jwt  # Sử dụng PyJWT
@@ -15,6 +15,8 @@ from helper.respository.repo_server import (
 
 router = APIRouter()
 
+# Sử dụng HTTPBearer để xác thực token
+oauth2_scheme = HTTPBearer()
 
 # Khóa bí mật để ký JWT
 SECRET_KEY = "chungpt_2401"
@@ -46,11 +48,12 @@ class UserResponse(BaseModel):
     avatar: str
 
 
-# Hàm tạo JWT
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
     expire = datetime.utcnow() + expires_delta
-    to_encode.update({"exp": expire})
+    to_encode.update(
+        {"exp": expire, "sub": data["username"]}
+    )  # Lưu username vào payload
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -80,28 +83,7 @@ def login_user(credentials: UserLogin):
         )
 
         return {
-            "access_token": access_token,
-            "token_type": "bearer",
-        }
-    else:
-        raise HTTPException(
-            status_code=401, detail="Invalid username/email or password."
-        )
-
-
-@router.post("/token")
-def login_user(credentials: UserLogin):
-    user = get_user_by_username_or_email(credentials.username_or_email)
-    if user and verify_password(credentials.password, user[0]):
-        # Tạo JWT
-        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-        access_token = create_access_token(
-            data={"sub": user[0]}, expires_delta=access_token_expires
-        )
-
-        return {
-            "access_token": access_token,
-            "token_type": "bearer",
+            "access_token": "bearer " + access_token,
         }
     else:
         raise HTTPException(

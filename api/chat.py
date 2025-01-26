@@ -25,28 +25,6 @@ SECRET_KEY = "chungpt_2401"
 ALGORITHM = "HS256"
 
 
-async def get_repo(token: str = Depends(oauth2_scheme)):
-    try:
-        # Giải mã JWT để lấy username
-        payload = jwt.decode(token.credentials, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(
-                status_code=401, detail="Invalid authentication credentials"
-            )
-
-        # Lấy db_path từ username
-        db_path = get_db_user_by_username_or_email(username)
-        if not db_path:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        # Khởi tạo RepositoryClient
-        repo = RepositoryClient(db_path)
-        return repo
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-
 async def get_current_user(token: str = Depends(oauth2_scheme)):
     try:
         # Giải mã JWT để lấy username

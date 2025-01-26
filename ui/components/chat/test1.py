@@ -15,41 +15,41 @@ messages = []
 
 
 def create_input_area(file_picker, chat, page, client, model, chat_id):
-    global messages
-    # URL của API bạn muốn gọi
-    url = "http://127.0.0.1:2401/auth/db"
+    # global messages
+    # # URL của API bạn muốn gọi
+    # url = "http://127.0.0.1:2401/auth/db"
 
-    # Tham số bạn muốn truyền vào API
-    params = {"username_or_email": shared_data.username_or_email}
+    # # Tham số bạn muốn truyền vào API
+    # params = {"username_or_email": shared_data.username_or_email}
 
-    # Gọi API sử dụng phương thức GET
-    response = requests.get(url, params=params)
+    # # Gọi API sử dụng phương thức GET
+    # response = requests.get(url, params=params)
 
-    # Kiểm tra xem yêu cầu có thành công không
-    if response.status_code == 200:
-        # Lấy dữ liệu JSON từ phản hồi
-        data = response.json()
+    # # Kiểm tra xem yêu cầu có thành công không
+    # if response.status_code == 200:
+    #     # Lấy dữ liệu JSON từ phản hồi
+    #     data = response.json()
 
-        # Lấy giá trị db_path từ response
-        db_path = data.get("db_path")
+    #     # Lấy giá trị db_path từ response
+    #     db_path = data.get("db_path")
 
-        if db_path:
-            # Khởi tạo RepositoryClient với db_path
-            repo = RepositoryClient(db_path)
-            print(f"\nRepositoryClient initialized with db_path: {db_path}\n")
+    #     if db_path:
+    #         # Khởi tạo RepositoryClient với db_path
+    #         repo = RepositoryClient(db_path)
+    #         print(f"\nRepositoryClient initialized with db_path: {db_path}\n")
 
-            # Bạn có thể sử dụng `repo` ở đây để thực hiện các thao tác khác
-            # Ví dụ: repo.some_method()
-        else:
-            print("Error: db_path not found in response")
-    else:
-        # In ra thông báo lỗi nếu yêu cầu không thành công
-        print(f"Error: {response.status_code}")
-        print(response.text)
+    #         # Bạn có thể sử dụng `repo` ở đây để thực hiện các thao tác khác
+    #         # Ví dụ: repo.some_method()
+    #     else:
+    #         print("Error: db_path not found in response")
+    # else:
+    #     # In ra thông báo lỗi nếu yêu cầu không thành công
+    #     print(f"Error: {response.status_code}")
+    #     print(response.text)
 
-    history = repo.get_brain_history_chat_by_chat_ai_id(chat_id)
+    # history = repo.get_brain_history_chat_by_chat_ai_id(chat_id)
 
-    messages = [{"role": role, "content": content} for role, content in history]
+    # messages = [{"role": role, "content": content} for role, content in history]
 
     def toggle_search(e):
         global is_toggled_search

@@ -6,14 +6,12 @@ from api.chat import app as chat_app
 from api.auth import app as auth_app
 from fastapi.middleware.cors import CORSMiddleware
 
-
 def delete_pycache(root_dir):
     for dirpath, dirnames, _ in os.walk(root_dir):
         if "__pycache__" in dirnames:
             pycache_path = os.path.join(dirpath, "__pycache__")
             shutil.rmtree(pycache_path)
             print(f"Deleted: {pycache_path}")
-
 
 # Tạo ứng dụng FastAPI chính
 app = FastAPI()

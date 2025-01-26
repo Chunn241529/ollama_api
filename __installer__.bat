@@ -58,7 +58,6 @@ IF NOT EXIST requirements.txt (
         echo pygments
         echo beautifulsoup4
         echo python-multipart
-        echo jwt
         echo PyJWT
         echo httpx
         echo aiohttp

@@ -9,7 +9,7 @@ db_name = "server.sqlite3"
 
 def create_database_client(db_name):
     # Đường dẫn đến file database
-    db_file = f"ui\\storage\\database_client\\{db_name}"
+    db_file = f"ui/storage/database_client/{db_name}"
 
     # Kiểm tra nếu file database tồn tại
     if os.path.exists(db_file):
@@ -48,7 +48,7 @@ def create_database_client(db_name):
     conn.commit()
     conn.close()
 
-    return f"Tạo database '{db_name}' thành công!!!"
+    return os.path.join("..", db_file).replace("\\", "/")
 
 
 # Database helper
@@ -69,6 +69,7 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def add_user(user_data: dict):
     # Tạo db_name từ username
     db_name = f"{user_data['username']}.sqlite3"
+    db_file = create_database_client(db_name)
 
     conn, cursor = get_db_cursor()
     try:
@@ -91,7 +92,7 @@ def add_user(user_data: dict):
                 user_data["verify_code"],
                 user_data["phone"],
                 user_data["email"],
-                db_name,
+                db_file,
             ),
         )
         user_id = cursor.lastrowid
@@ -108,12 +109,11 @@ def add_user(user_data: dict):
                 user_data["email"],
                 user_data["avatar"],
                 user_data["phone"],
-                db_name,
+                db_file,
             ),
         )
 
         # Tạo database riêng cho user
-        create_database_client(db_name)
 
         conn.commit()
     except sqlite3.IntegrityError as e:
@@ -128,6 +128,21 @@ def get_user_by_username_or_email(identifier: str) -> Optional[tuple]:
         cursor.execute(
             """
             SELECT password FROM user
+            WHERE username = ? OR email = ?
+            """,
+            (identifier, identifier),
+        )
+        return cursor.fetchone()
+    finally:
+        conn.close()
+
+
+def get_db_user_by_username_or_email(identifier: str) -> Optional[tuple]:
+    conn, cursor = get_db_cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT db_name FROM user
             WHERE username = ? OR email = ?
             """,
             (identifier, identifier),

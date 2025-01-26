@@ -1,9 +1,10 @@
-from fastapi import FastAPI, HTTPException, Response, Request
+from fastapi import FastAPI, HTTPException, Query, Response, Request
 from pydantic import BaseModel
 from typing import List, Optional
 from helper.respository.repo_server import (
     add_user,
     get_user_by_username_or_email,
+    get_db_user_by_username_or_email,
     get_all_users,
     delete_user,
     verify_password,
@@ -26,6 +27,10 @@ class UserRegistration(BaseModel):
 class UserLogin(BaseModel):
     username_or_email: str
     password: str
+
+
+class db_path(BaseModel):
+    username_or_email: str
 
 
 class UserResponse(BaseModel):
@@ -58,11 +63,25 @@ def login_user(credentials: UserLogin, response: Response):
         response.set_cookie(
             key="username_or_email", value=user[0], max_age=30 * 24 * 60 * 60
         )  # Cookie có hiệu lực trong 30 ngày
-        return {"message": "Login successful."}
+        return {
+            "message": "Login successful.",
+            "username_or_email": user[0],  # Trả về username hoặc email
+        }
     else:
         raise HTTPException(
             status_code=401, detail="Invalid username/email or password."
         )
+
+
+@app.get("/db")
+def login_user(
+    username_or_email: str = Query(..., description="Username or email of the user")
+):
+    db_path = get_db_user_by_username_or_email(username_or_email)
+
+    return {
+        "db_path": db_path[0],  # Trả về thông tin người dùng
+    }
 
 
 @app.get("/users", response_model=List[UserResponse])

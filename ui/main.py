@@ -48,7 +48,7 @@ def create_dashboard_page(page):
 
         # Cập nhật lại input_area với model mới
         input_area_ref.current.controls = [
-            create_input_area(file_picker, chat, page, client, model)
+            create_input_area(file_picker, chat, page, client, model, chat_id=1)
         ]
         input_area_ref.current.update()
 

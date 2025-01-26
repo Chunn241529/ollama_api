@@ -1,13 +1,12 @@
 # login.py
 import flet as ft
 import requests
-import time
+from components.chat.share_data import shared_data
 
 # URL API
 LOGIN_URL = "http://localhost:2401/auth/login"
 
 
-# Hàm xử lý đăng nhập
 def login_user(username, password):
     payload = {
         "username_or_email": username,
@@ -25,8 +24,9 @@ def login_user(username, password):
         print("Phản hồi từ server:", response.json())
 
         if response.status_code == 200:
-            global TOKEN
-            TOKEN = response.json().get("access_token")
+            # Lưu giá trị username_email vào shared_data
+            shared_data.username_or_email = username
+            print("DEBUGGGGGGGGGGGGGGGGGG: " + shared_data.username_or_email)
             return True, "Đăng nhập thành công!"
         else:
             error_detail = response.json().get("detail", "Lỗi không xác định")

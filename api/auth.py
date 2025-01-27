@@ -1,9 +1,9 @@
 from typing import List
 from fastapi import APIRouter, FastAPI, HTTPException, Depends, Query, Request, Response
-from fastapi.security import HTTPBearer
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from datetime import datetime, timedelta
-import jwt  # Sử dụng PyJWT
+import jwt  # PyJWT
 from helper.respository.repo_server import (
     add_user,
     get_user_by_username_or_email,
@@ -15,11 +15,11 @@ from helper.respository.repo_server import (
 
 router = APIRouter()
 
-# Sử dụng HTTPBearer để xác thực token
+# HTTPBearer for authorization
 oauth2_scheme = HTTPBearer()
 
-# Khóa bí mật để ký JWT
-SECRET_KEY = "chungpt_2401"
+# Secret key and algorithm for JWT
+SECRET_KEY = "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
@@ -36,8 +36,8 @@ class UserRegistration(BaseModel):
 
 
 class UserLogin(BaseModel):
-    username_or_email: str
-    password: str
+    username_or_email: str = "admin"
+    password: str = "admin"
 
 
 class UserResponse(BaseModel):
@@ -46,29 +46,40 @@ class UserResponse(BaseModel):
     email: str
     full_name: str
     avatar: str
+    db_name: str
 
 
+# Utility to create JWT
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
     expire = datetime.utcnow() + expires_delta
-    to_encode.update(
-        {"exp": expire, "sub": data["username"]}
-    )  # Lưu username vào payload
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 
+# Middleware to verify JWT
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(oauth2_scheme)):
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print("Payload:", payload)
+        username = payload.get("sub")
+        if not username:
+            raise HTTPException(status_code=401, detail="Invalid token payload.")
+        return {"username": username}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Token has expired.")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token.")
+
+
+# Routes
 @router.post("/register")
 def register_user(user: UserRegistration):
-    """
-    Register a new user. Check if username or email already exists.
-    """
     try:
-        # Gọi hàm add_user từ repo_server
         add_user(user.dict())
         return {"message": f"User '{user.username}' registered successfully."}
     except ValueError as e:
-        # Trả về lỗi nếu username/email đã tồn tại
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -76,15 +87,12 @@ def register_user(user: UserRegistration):
 def login_user(credentials: UserLogin):
     user = get_user_by_username_or_email(credentials.username_or_email)
     if user and verify_password(credentials.password, user[0]):
-        # Tạo JWT
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
-            data={"sub": user[0]}, expires_delta=access_token_expires
+            data={"sub": credentials.username_or_email},
+            expires_delta=access_token_expires,
         )
-
-        return {
-            "access_token": "bearer " + access_token,
-        }
+        return {"access_token": access_token, "token_type": "bearer"}
     else:
         raise HTTPException(
             status_code=401, detail="Invalid username/email or password."
@@ -104,22 +112,7 @@ def get_db_path(
 
 
 @router.get("/users", response_model=List[UserResponse])
-def get_users(request: Request):
-    # Kiểm tra JWT để xác thực người dùng
-    token = request.headers.get("Authorization")
-    if not token or not token.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Not authenticated.")
-
-    try:
-        token = token.split("Bearer ")[1]
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username = payload.get("sub")
-        if not username:
-            raise HTTPException(status_code=401, detail="Invalid token.")
-    except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token.")
-
-    # Lấy danh sách người dùng
+def get_users(username: str = Depends(verify_token)):
     users = get_all_users()
     return [
         UserResponse(
@@ -128,19 +121,19 @@ def get_users(request: Request):
             email=user[2],
             full_name=user[3],
             avatar=user[4],
+            db_name=user[5],
         )
         for user in users
     ]
 
 
 @router.delete("/users/{username}")
-def delete_user_api(username: str):
+def delete_user_api(username: str, _: str = Depends(verify_token)):
     delete_user(username)
     return {"message": f"User '{username}' deleted successfully."}
 
 
 @router.post("/logout")
 def logout_user(response: Response):
-    # Xóa cookie khi đăng xuất (nếu có)
-    response.delete_cookie(key="username")
+    response.delete_cookie(key="Authorization")
     return {"message": "Logout successful."}

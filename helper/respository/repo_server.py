@@ -157,7 +157,7 @@ def get_all_users() -> List[tuple]:
     try:
         cursor.execute(
             """
-            SELECT u.id, u.username, u.email, up.full_name, up.avatar
+            SELECT u.id, u.username, u.email, up.full_name, up.avatar, up.db_name
             FROM user u
             LEFT JOIN user_profile up ON u.id = up.user_id
             """

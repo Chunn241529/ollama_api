@@ -83,7 +83,6 @@ async def models(current_user: dict = Depends(verify_token)):
 async def create_chat(request: ManagerChat, current_user: dict = Depends(verify_token)):
     custom_ai = request.custom_ai
     username = current_user["username"]
-    print("USERNAMEEEEEEEEEEEEEEEEEEEEEEE: " + username)
 
     db_path = await call_api_get_dbname(username)  # Gọi async function
     repo = RepositoryClient(db_path)
@@ -98,7 +97,6 @@ async def get_chat(chat_ai_id: int, current_user: dict = Depends(verify_token)):
     Lấy thông tin phiên trò chuyện AI từ cơ sở dữ liệu người dùng.
     """
     username = current_user["username"]
-    print("USERNAMEEEEEEEEEEEEEEEEEEEEEEE: " + username)
 
     db_path = await call_api_get_dbname(username)  # Gọi async function
     repo = RepositoryClient(db_path)
@@ -114,7 +112,6 @@ async def get_history_chat(chat_ai_id: int, current_user: dict = Depends(verify_
     Lấy lịch sử cuộc trò chuyện từ cơ sở dữ liệu người dùng.
     """
     username = current_user["username"]
-    print("USERNAMEEEEEEEEEEEEEEEEEEEEEEE: " + username)
 
     db_path = await call_api_get_dbname(username)  # Gọi async function
     repo = RepositoryClient(db_path)
@@ -207,17 +204,23 @@ async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_to
     is_search = chat_request.is_search
 
     username = current_user["username"]
-    print("USERNAMEEEEEEEEEEEEEEEEEEEEEEE: " + username)
 
-    db_path = await call_api_get_dbname(username)  # Gọi async function
+    db_path = await call_api_get_dbname(username)
     repo = RepositoryClient(db_path)
     custom_ai = repo.get_custom_chat_ai_by_id(chat_ai_id)
-    custom_ai_text = custom_ai[0]  # Lấy phần tử đầu tiên của tuple
+    custom_ai_text = custom_ai[0]
+
+    history_chat = repo.get_brain_history_chat_by_chat_ai_id(chat_ai_id)
+
     messages = [{"role": "system", "content": custom_ai_text}]
     brain_think = []
     brain_answer = []
 
+    for role, content in history_chat:
+        messages.append({"role": role, "content": content})
+
     messages.append({"role": "user", "content": prompt})
+    repo.insert_brain_history_chat(chat_ai_id, role="user", content=prompt)
 
     async def generate():
         async with aiohttp.ClientSession() as session:
@@ -252,6 +255,9 @@ async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_to
                     ).strip()
 
                 brain_think.append({"role": "user", "content": debate_prompt})
+                repo.insert_brain_history_chat(
+                    chat_ai_id, role="user", content=debate_prompt
+                )
 
                 deepthink_response = ""  # Tạo biến chứa toàn bộ kết quả
                 async for part in stream_response_deepthink(
@@ -263,14 +269,24 @@ async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_to
                 brain_answer.append(
                     {"role": "assistant", "content": deepthink_response}
                 )
+                repo.insert_brain_history_chat(
+                    chat_ai_id, role="assistant", content=deepthink_response
+                )
 
+                # Chỉ lấy nội dung "content" từ brain_answer
+                content_only = brain_answer[0]["content"]
+
+                # Tạo refined_prompt với nội dung đã được làm sạch
                 refined_prompt = textwrap.dedent(
                     f"""
-                    Dựa trên phân tích {brain_answer}, hãy đưa ra kết luận cuối cùng cho câu hỏi: "{prompt}" đẩy đủ và logic nhất.
+                    Dựa trên phân tích "{content_only}", hãy đưa ra kết luận cuối cùng cho câu hỏi: "{prompt}" đầy đủ và logic nhất.
                     """
                 ).strip()
 
                 messages.append({"role": "user", "content": refined_prompt})
+                repo.insert_brain_history_chat(
+                    chat_ai_id, role="user", content=refined_prompt
+                )
 
             elif is_search:
                 search_results = (
@@ -284,12 +300,18 @@ async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_to
                         Kết quả tìm kiếm: \n"{extracted_info}"\n Dưa vào kết quả tìm kiếm trên, hãy cung cấp thêm thông tin 'body' và 'href' của website đó.
                     """
                     messages.append({"role": "user", "content": search})
+                    repo.insert_brain_history_chat(
+                        chat_ai_id, role="user", content=search
+                    )
 
             full_response = ""
             async for part in stream_response_normal(session, model, messages):
                 yield part
                 full_response += part
             messages.append({"role": "assistant", "content": full_response})
+            repo.insert_brain_history_chat(
+                chat_ai_id, role="assistant", content=full_response
+            )
 
     return StreamingResponse(generate(), media_type="text/plain")
 

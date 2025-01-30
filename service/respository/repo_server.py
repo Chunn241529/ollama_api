@@ -48,7 +48,7 @@ def create_database_client(db_name):
     conn.commit()
     conn.close()
 
-    return os.path.join("..", db_file).replace("\\", "/")
+    return os.path.join(db_file).replace("\\", "/")
 
 
 # Database service

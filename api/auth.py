@@ -99,15 +99,23 @@ def login_user(credentials: UserLogin):
         )
 
 
+import time
+
+
 @router.get("/db")
 def get_db_path(
     username_or_email: str = Query(..., description="Username or email of the user")
 ):
+    start_time = time.time()
     db_path = get_db_user_by_username_or_email(username_or_email)
+    end_time = time.time()
+    print(f"DB Query Time: {end_time - start_time:.3f} sec")
+
     if db_path is None:
         raise HTTPException(
             status_code=404, detail="Database path not found for the user."
         )
+
     return {"db_path": db_path[0]}
 
 

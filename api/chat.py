@@ -4,10 +4,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
 import asyncio
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import requests
 from helper.respository.repo_client import RepositoryClient
-from helper.respository.repo_server import get_db_user_by_username_or_email
 from api.auth import verify_token  # Import verify_token từ auth.py
 
 router = APIRouter()
@@ -64,13 +61,11 @@ async def models(current_user: dict = Depends(verify_token)):
 
 @router.post("/create-chat")
 async def create_chat(request: ManagerChat, current_user: dict = Depends(verify_token)):
-    """
-    Tạo phiên trò chuyện mới với AI và lưu thông tin vào cơ sở dữ liệu người dùng.
-    """
     custom_ai = request.custom_ai
     username = current_user["username"]
     print("USERNAMEEEEEEEEEEEEEEEEEEEEEEE: " + username)
-    db_path = call_api_get_dbname(username)
+
+    db_path = await call_api_get_dbname(username)  # Gọi async function
     repo = RepositoryClient(db_path)
 
     chat_ai_id = repo.insert_chat_ai(custom_ai)
@@ -161,15 +156,17 @@ async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_to
 
 from functools import lru_cache
 
+import httpx
 
-@lru_cache(maxsize=100)
-def call_api_get_dbname(username):
+
+async def call_api_get_dbname(username):
     url = "http://127.0.0.1:2401/auth/db"
     params = {"username_or_email": username}
-    response = requests.get(url, params=params, timeout=10)
-    if response.status_code == 200:
-        data = response.json()
-        db_path = data.get("db_path")
-        if db_path:
-            return db_path
+    async with httpx.AsyncClient() as client:
+        response = await client.get(url, params=params, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            db_path = data.get("db_path")
+            if db_path:
+                return db_path
     raise HTTPException(status_code=500, detail="Failed to fetch db_path.")

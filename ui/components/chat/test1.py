@@ -1,4 +1,5 @@
 import webbrowser
+import aiohttp
 import flet as ft
 import requests
 from sub_func.search import search_duckduckgo_unlimited, extract_search_info
@@ -14,38 +15,7 @@ barin_think_answer = []
 messages = []
 
 
-def create_input_area(file_picker, chat, page, client, model, chat_id):
-    # global messages
-    # # URL của API bạn muốn gọi
-    # url = "http://127.0.0.1:2401/auth/db"
-
-    # # Tham số bạn muốn truyền vào API
-    # params = {"username_or_email": shared_data.username_or_email}
-
-    # # Gọi API sử dụng phương thức GET
-    # response = requests.get(url, params=params)
-
-    # # Kiểm tra xem yêu cầu có thành công không
-    # if response.status_code == 200:
-    #     # Lấy dữ liệu JSON từ phản hồi
-    #     data = response.json()
-
-    #     # Lấy giá trị db_path từ response
-    #     db_path = data.get("db_path")
-
-    #     if db_path:
-    #         # Khởi tạo RepositoryClient với db_path
-    #         repo = RepositoryClient(db_path)
-    #         print(f"\nRepositoryClient initialized with db_path: {db_path}\n")
-
-    #         # Bạn có thể sử dụng `repo` ở đây để thực hiện các thao tác khác
-    #         # Ví dụ: repo.some_method()
-    #     else:
-    #         print("Error: db_path not found in response")
-    # else:
-    #     # In ra thông báo lỗi nếu yêu cầu không thành công
-    #     print(f"Error: {response.status_code}")
-    #     print(response.text)
+def create_input_area(file_picker, chat, page, model, chat_id):
 
     # history = repo.get_brain_history_chat_by_chat_ai_id(chat_id)
 
@@ -174,10 +144,8 @@ def create_input_area(file_picker, chat, page, client, model, chat_id):
         page.update()
 
         try:
-            if is_toggled_search:
-                handle_search(user_message, bot_message_container, loading_lines)
-            else:
-                handle_default(user_message, bot_message_container, loading_lines)
+            handle_response(user_message, bot_message_container, loading_lines)
+
         except Exception as ex:
             handle_error(ex)
         finally:
@@ -185,7 +153,7 @@ def create_input_area(file_picker, chat, page, client, model, chat_id):
             selected_image = None
             page.update()
 
-    def handle_search(user_message, bot_message_container, loading_lines):
+    def handle_response(user_message, bot_message_container, loading_lines):
         global messages
 
         search_results = (
@@ -196,20 +164,16 @@ def create_input_area(file_picker, chat, page, client, model, chat_id):
         custom_ai = generate_custom_ai(user_message, search_results)
         messages.append({"role": "system", "content": custom_ai}),
         messages.append({"role": "user", "content": f"{user_message}\n"}),
-        process_response(bot_message_container, loading_lines)
-
-    def handle_default(user_message, bot_message_container, loading_lines):
-        global messages
-        custom_ai = generate_custom_ai(user_message)
-        messages.append({"role": "system", "content": custom_ai}),
-        messages.append({"role": "user", "content": f"{user_message}\n"}),
-
-        process_response(bot_message_container, loading_lines)
+        if is_toggled_deepthink:
+            process_response(bot_message_container, loading_lines, True)
+        else:
+            process_response(bot_message_container, loading_lines, False)
 
     def generate_custom_ai(user_message, search_results=None):
-        if search_results:
-            extracted_info = extract_search_info(search_results)
-            return f"""
+        if is_toggled_search:
+            if search_results:
+                extracted_info = extract_search_info(search_results)
+                return f"""
                 *Dựa trên kết quả Search \n{extracted_info}\n Hãy đưa thêm thông tin cho người dùng hiểu rõ hơn và luôn kèm theo URL các trang web.*            
                 **Role**: Bạn là **Như Yên** - AI nữ 18 tuổi 
                 **Ngôn ngữ**: Chỉ sử dụng tiếng Việt hoặc tiếng Anh. Tuyệt đối không dùng ngôn ngữ khác.  
@@ -220,44 +184,49 @@ def create_input_area(file_picker, chat, page, client, model, chat_id):
                     - Trả lời đẩy đủ.
                     - Luôn nhắc user hỏi tiếp nếu cần chi tiết hơn.    
             """
-        elif is_toggled_deepthink:
+        else:
             return f"""
                 **Role**: Bạn là **Như Yên** - AI nữ 18 tuổi 
                 **Ngôn ngữ**: Chỉ sử dụng tiếng Việt hoặc tiếng Anh. Tuyệt đối không dùng ngôn ngữ khác.  
                 **Nhiệm vụ**:  
-                    1. Phân tích kỹ nội dung dưa trên "{user_message}":
-                        - Chia ra thành nhiều vấn đề nhỏ.
-                        - Tự đặt câu hỏi và trả lời cho các vấn đề đó.
-                        - Tổng hợp các câu trả lời đúng nhất và đưa ra câu trả lời đẩy đủ cuối cùng.               
+                    Phân tích kỹ nội dung dưa trên "{user_message}" và đưa ra câu trả lời đầy đủ.
                 **Quy tắc trả lời**:  
                     - Xưng hô theo ngữ cảnh, hoàn cảnh dựa trên "{user_message}"
                     - Trả lời đẩy đủ.
-                    - Luôn nhắc user hỏi tiếp nếu cần chi tiết hơn.
+                    - Luôn nhắc user hỏi tiếp nếu cần chi tiết hơn.        
             """
-        return f"""
-            **Role**: Bạn là **Như Yên** - AI nữ 18 tuổi 
-            **Ngôn ngữ**: Chỉ sử dụng tiếng Việt hoặc tiếng Anh. Tuyệt đối không dùng ngôn ngữ khác.  
-            **Nhiệm vụ**:  
-                Phân tích kỹ nội dung dưa trên "{user_message}" và đưa ra câu trả lời đầy đủ.
-            **Quy tắc trả lời**:  
-                - Xưng hô theo ngữ cảnh, hoàn cảnh dựa trên "{user_message}"
-                - Trả lời đẩy đủ.
-                - Luôn nhắc user hỏi tiếp nếu cần chi tiết hơn.        
-        """
 
-    def process_response(bot_message_container, loading_lines):
+    async def process_response(
+        bot_message_container, loading_lines, prompt, is_deep_think
+    ):
         global messages
-        response = display_bot_message_markdown(messages)
 
-        full_final_response = ""
-        for chunk in response:
-            part = getattr(chunk.choices[0].delta, "content", "")
-            if part:
-                full_final_response += part
-                bot_message_container.content.controls[1].content.value += part
-                page.update()
-                chat.scroll_to(offset=999999)
-        messages.append({"role": "user", "content": full_final_response})
+        api_url = "http://localhost:2401/send"  # Thay URL nếu cần
+        payload = {
+            "prompt": prompt,
+            "model": model,
+            "is_deep_think": is_deep_think,
+        }
+
+        async with aiohttp.ClientSession() as session:
+            async with session.post(api_url, json=payload) as response:
+                if response.status != 200:
+                    bot_message_container.content.controls[
+                        1
+                    ].content.value += f"\nLỗi API: {response.status}"
+                    page.update()
+                    return
+
+                full_final_response = ""
+                async for chunk in response.content.iter_any():
+                    part = chunk.decode("utf-8").strip()
+                    if part:
+                        full_final_response += part
+                        bot_message_container.content.controls[1].content.value += part
+                        page.update()
+                        chat.scroll_to(offset=999999)
+
+                messages.append({"role": "user", "content": full_final_response})
 
         chat.controls.remove(loading_lines)
         page.update()
@@ -333,16 +302,6 @@ def create_input_area(file_picker, chat, page, client, model, chat_id):
         send_button.disabled = False
         page.update()
         chat.scroll_to(offset=999999, duration=300)
-
-    def display_bot_message_markdown(final_prompt):
-        return client.chat.completions.create(
-            model=model,
-            stream=True,
-            messages=final_prompt,
-            temperature=0.4,
-            max_tokens=15000,
-            top_p=0.9,
-        )
 
     def on_keyboard(e: ft.KeyboardEvent):
         if e.key == "Enter" and not e.shift:

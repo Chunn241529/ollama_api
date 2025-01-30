@@ -51,13 +51,13 @@ def create_database_client(db_name):
     return os.path.join(db_file).replace("\\", "/")
 
 
-# Database helper
+# Database service
 def get_db_cursor():
     conn = sqlite3.connect(db_name)
     return conn, conn.cursor()
 
 
-# Password helper (sử dụng Werkzeug)
+# Password service (sử dụng Werkzeug)
 def hash_password(password: str) -> str:
     return generate_password_hash(password)  # Sử dụng phương thức mặc định
 

@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import jwt  # PyJWT
-from helper.respository.repo_server import (
+from service.respository.repo_server import (
     add_user,
     get_user_by_username_or_email,
     get_db_user_by_username_or_email,
@@ -21,7 +21,7 @@ oauth2_scheme = HTTPBearer()
 # Secret key and algorithm for JWT
 SECRET_KEY = "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
 # Models

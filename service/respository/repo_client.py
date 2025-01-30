@@ -48,6 +48,16 @@ class RepositoryClient:
             )
             return cursor.fetchone()
 
+    def get_custom_chat_ai_by_id(self, chat_ai_id):
+        """Lấy custom_ai từ bảng chat_ai theo id."""
+        with self._connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT custom_ai FROM chat_ai WHERE id = ?",
+                (chat_ai_id,),
+            )
+            return cursor.fetchone()
+
     # =============================== TABLE: brain_history_chat ===============================
 
     def insert_brain_history_chat(self, chat_ai_id, role, content):

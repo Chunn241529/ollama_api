@@ -2,15 +2,12 @@
 import os
 import shutil
 import flet as ft
-from openai import OpenAI
 from components.authentication.login import create_login_page
 from components.authentication.register import create_register_page
 from components.chat.header import create_header
 from components.chat.chat import create_chat
 from components.chat.test1 import create_input_area
 
-# Cấu hình API key của OpenAI (thay thế bằng API key thực)
-client = OpenAI(base_url=f"http://localhost:11434/v1", api_key="ollama")
 messages = []
 selected_image = None
 model = "chunn1.0:latest"  # Model mặc định
@@ -48,14 +45,14 @@ def create_dashboard_page(page):
 
         # Cập nhật lại input_area với model mới
         input_area_ref.current.controls = [
-            create_input_area(file_picker, chat, page, client, model, chat_id=1)
+            create_input_area(file_picker, chat, page, model, chat_id=1)
         ]
         input_area_ref.current.update()
 
     # Tạo các component
     header = create_header(update_model)
     chat = create_chat()
-    input_area = create_input_area(file_picker, chat, page, client, model, chat_id=1)
+    input_area = create_input_area(file_picker, chat, page, model, chat_id=1)
 
     return ft.Column(
         [

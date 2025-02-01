@@ -9,7 +9,7 @@ db_name = "server.sqlite3"
 
 def create_database_client(db_name):
     # Đường dẫn đến file database
-    db_file = f"ui/storage/database_client/{db_name}"
+    db_file = f"storage/database_client/{db_name}"
 
     # Kiểm tra nếu file database tồn tại
     if os.path.exists(db_file):
@@ -51,13 +51,13 @@ def create_database_client(db_name):
     return os.path.join(db_file).replace("\\", "/")
 
 
-# Database helper
+# Database service
 def get_db_cursor():
     conn = sqlite3.connect(db_name)
     return conn, conn.cursor()
 
 
-# Password helper (sử dụng Werkzeug)
+# Password service (sử dụng Werkzeug)
 def hash_password(password: str) -> str:
     return generate_password_hash(password)  # Sử dụng phương thức mặc định
 

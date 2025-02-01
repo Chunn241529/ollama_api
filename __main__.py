@@ -37,4 +37,4 @@ if __name__ == "__main__":
     # Xóa màn hình terminal
     os.system("cls" if os.name == "nt" else "clear")
     # Khởi động Uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=2401, reload=False)
+    uvicorn.run(app, host="0.0.0.0", port=2401, reload=False, server_header=False)

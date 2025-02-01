@@ -124,6 +124,8 @@ async def get_history_chat(chat_ai_id: int, current_user: dict = Depends(verify_
 async def stream_response_normal(
     session, model, messages, temperature=0.8, max_tokens=15000, top_p=0.9, stop=None
 ):
+    url_ngrok = "https://c492-171-243-49-133.ngrok-free.app"
+    url_local = "http://localhost:11434"
     try:
         payload = {
             "model": model,
@@ -137,9 +139,7 @@ async def stream_response_normal(
         if stop:  # Nếu có danh sách stop words thì thêm vào payload
             payload["stop"] = stop
 
-        async with session.post(
-            "http://localhost:11434/api/chat", json=payload
-        ) as response:
+        async with session.post(f"{url_ngrok}/api/chat", json=payload) as response:
             async for chunk in response.content.iter_any():
                 try:
                     chunk_data = json.loads(chunk.decode("utf-8"))  # Parse JSON
@@ -157,6 +157,8 @@ async def stream_response_normal(
 async def stream_response_deepthink(
     session, model, messages, temperature=0.5, max_tokens=15000, top_p=0.9, stop=None
 ):
+    url_ngrok = "https://c492-171-243-49-133.ngrok-free.app"
+    url_local = "http://localhost:11434"
     try:
         payload = {
             "model": model,
@@ -170,9 +172,7 @@ async def stream_response_deepthink(
         if stop:  # Nếu có danh sách stop words thì thêm vào payload
             payload["stop"] = stop
 
-        async with session.post(
-            "http://localhost:11434/api/chat", json=payload
-        ) as response:
+        async with session.post(f"{url_ngrok}/api/chat", json=payload) as response:
             yield "<think>\n"
 
             async for chunk in response.content.iter_any():

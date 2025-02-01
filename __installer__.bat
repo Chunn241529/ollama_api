@@ -29,7 +29,6 @@ REM Tạo tệp requirements.txt mới với các thư viện cần thiết
 echo Khởi tạo file requirements.txt...
 (
     echo openai
-    echo flet
     echo fastapi
     echo uvicorn
     echo python-dotenv
@@ -41,7 +40,6 @@ echo Khởi tạo file requirements.txt...
     echo tqdm
     echo gfpgan
     echo schedule
-    echo markdown
     echo pygments
     echo beautifulsoup4
     echo python-multipart

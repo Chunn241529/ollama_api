@@ -139,7 +139,7 @@ async def stream_response_normal(
         if stop:  # Nếu có danh sách stop words thì thêm vào payload
             payload["stop"] = stop
 
-        async with session.post(f"{url_ngrok}/api/chat", json=payload) as response:
+        async with session.post(f"{url_local}/api/chat", json=payload) as response:
             async for chunk in response.content.iter_any():
                 try:
                     chunk_data = json.loads(chunk.decode("utf-8"))  # Parse JSON
@@ -172,7 +172,7 @@ async def stream_response_deepthink(
         if stop:  # Nếu có danh sách stop words thì thêm vào payload
             payload["stop"] = stop
 
-        async with session.post(f"{url_ngrok}/api/chat", json=payload) as response:
+        async with session.post(f"{url_local}/api/chat", json=payload) as response:
             yield "<think>\n"
 
             async for chunk in response.content.iter_any():
@@ -389,6 +389,11 @@ async def chat_test(chat_request: ChatRequest):
                 ).strip()
 
                 messages.append({"role": "user", "content": refined_prompt})
+                full_response = ""
+                async for part in stream_response_normal(session, model, messages):
+                    yield part
+                    full_response += part
+                messages.append({"role": "assistant", "content": full_response})
 
             elif is_search:
                 search_results = (
@@ -402,6 +407,11 @@ async def chat_test(chat_request: ChatRequest):
                         Kết quả tìm kiếm: \n"{extracted_info}"\n Dưa vào kết quả tìm kiếm trên, hãy cung cấp thêm thông tin 'body' và 'href' của website đó.
                     """
                     messages.append({"role": "user", "content": search})
+                    full_response = ""
+                    async for part in stream_response_normal(session, model, messages):
+                        yield part
+                        full_response += part
+                    messages.append({"role": "assistant", "content": full_response})
 
             full_response = ""
             async for part in stream_response_normal(session, model, messages):

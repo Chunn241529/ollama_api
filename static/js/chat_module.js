@@ -13,12 +13,17 @@ textarea.addEventListener('input', () => {
 const searchToggle = document.getElementById('search-toggle');
 const deepThinkToggle = document.getElementById('deep-think-toggle');
 
+let togggle_deepthink = false;
+let togggle_search = false;
+
 searchToggle.addEventListener('click', () => {
     searchToggle.classList.toggle('active');
     if (searchToggle.classList.contains('active')) {
         deepThinkToggle.classList.remove('active');
+        togggle_search = true;
         console.log('Chế độ tìm kiếm được kích hoạt');
     } else {
+        togggle_search = false;
         console.log('Chế độ tìm kiếm bị tắt');
     }
 });
@@ -27,8 +32,10 @@ deepThinkToggle.addEventListener('click', () => {
     deepThinkToggle.classList.toggle('active');
     if (deepThinkToggle.classList.contains('active')) {
         searchToggle.classList.remove('active');
+        togggle_deepthink = true;
         console.log('Chế độ deep think được kích hoạt');
     } else {
+        togggle_deepthink = false;
         console.log('Chế độ deep think bị tắt');
     }
 });
@@ -93,8 +100,8 @@ function addCopyButtons() {
 }
 
 
-// Hàm render nội dung Markdown streaming
-const generateResponse = async (BotMsgDiv) => {
+
+const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = false) => {
     const textElement = BotMsgDiv.querySelector(".message-text");
 
     const response = await fetch("http://127.0.0.1:2401/chat/test", {
@@ -106,8 +113,8 @@ const generateResponse = async (BotMsgDiv) => {
             prompt: userMessage,
             model: "llama3.2:3b",
             chat_ai_id: 0,
-            is_deep_think: false,
-            is_search: false,
+            is_deep_think: is_deep_think,
+            is_search: is_search,
         }),
     });
 
@@ -125,25 +132,43 @@ const generateResponse = async (BotMsgDiv) => {
         if (done) break;
 
         result += decoder.decode(value, { stream: true });
-        // Parse Markdown và render HTML
-        textElement.innerHTML = marked.parse(result);
+
+        // In log kiểm tra xem thẻ <think> có bị mất không
+        console.log("Streaming content:", result);
+
+        // Parse Markdown nhưng giữ nguyên thẻ HTML
+        let parsedResult = marked.parse(result);
+
+        // Thay thế thẻ <think> thành <span> để đổi màu
+        parsedResult = parsedResult.replace(/&lt;think&gt;(.*?)&lt;\/think&gt;/g, '<span style="color: black;">$1</span>');
+
+
+        textElement.innerHTML = parsedResult;
+
         hljs.highlightAll();
         addCopyButtons();
         scrollToBottom();
     }
 
+    // Xử lý lần cuối sau khi toàn bộ dữ liệu đã nhận xong
     result += decoder.decode(new Uint8Array(), { stream: false });
-    // textElement.innerHTML = marked.parse(result);
-    textElement.innerHTML = marked.parse(result);
+
+    // Log nội dung cuối cùng
+    console.log("Final content:", result);
+
+    let parsedResult = marked.parse(result);
+    parsedResult = parsedResult.replace(/&lt;think&gt;(.*?)&lt;\/think&gt;/g, '<span style="color: black;">$1</span>');
+
+    textElement.innerHTML = parsedResult;
+
     hljs.highlightAll();
     addCopyButtons();
     scrollToBottom();
-
 };
 
 
 
-const handleFormSubmit = (e) => {
+const handleFormSubmit = (e, is_deep_think, is_search) => {
     e.preventDefault();
     userMessage = promptInput.value.trim();
     if (!userMessage) return;
@@ -156,12 +181,21 @@ const handleFormSubmit = (e) => {
     promptInput.value = ""; // Clear the input value after submitting
 
     setTimeout(() => {
-        const BotMsgHTML = `<img src="\\storage\\assets\\img\\1.jpg" alt="" class="avatar"><p class="message-text">Just a sec...</p>`;
+        const BotMsgHTML = `<img src="/storage/assets/img/1.jpg" alt="" class="avatar"><p class="message-text">Just a sec...</p>`;
         const BotMsgDiv = createMsgElement(BotMsgHTML, "bot-message")
         chatsContainer.appendChild(BotMsgDiv);
         scrollToBottom();
-        generateResponse(BotMsgDiv);
-        scrollToBottom();
+        if (togggle_search) {
+            generateResponse(BotMsgDiv, is_deep_think = false, is_search = true);
+            scrollToBottom();
+        } else if (togggle_deepthink) {
+            generateResponse(BotMsgDiv, is_deep_think = true, is_search = false);
+            scrollToBottom();
+        } else {
+            generateResponse(BotMsgDiv, is_deep_think = false, is_search = false);
+            scrollToBottom();
+        }
+
     }, 600)
 }
 

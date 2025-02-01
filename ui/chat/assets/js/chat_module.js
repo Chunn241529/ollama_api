@@ -34,6 +34,7 @@ deepThinkToggle.addEventListener('click', () => {
 });
 
 
+const container = document.querySelector(".container")
 const chatsContainer = document.querySelector(".chats-container");
 const promptForm = document.querySelector(".prompt-form");
 const promptInput = promptForm.querySelector(".prompt-input");
@@ -46,6 +47,8 @@ const createMsgElement = (content, className) => {
     div.innerHTML = content;
     return div;
 }
+
+const scrollToBottom = () => container.scrollTo({ top: container.scrollHeight, behavior: "smooth" })
 
 function addCopyButtons() {
     document.querySelectorAll('pre code').forEach((block, index) => {
@@ -101,7 +104,7 @@ const generateResponse = async (BotMsgDiv) => {
         },
         body: JSON.stringify({
             prompt: userMessage,
-            model: "qwen2.5-coder:7b",
+            model: "llama3.2:3b",
             chat_ai_id: 0,
             is_deep_think: false,
             is_search: false,
@@ -124,18 +127,18 @@ const generateResponse = async (BotMsgDiv) => {
         result += decoder.decode(value, { stream: true });
         // Parse Markdown và render HTML
         textElement.innerHTML = marked.parse(result);
-
-        // Apply highlight cho code blocks
         hljs.highlightAll();
-
-        // Chèn nút copy cho mỗi code block
         addCopyButtons();
+        scrollToBottom();
     }
 
     result += decoder.decode(new Uint8Array(), { stream: false });
+    // textElement.innerHTML = marked.parse(result);
     textElement.innerHTML = marked.parse(result);
     hljs.highlightAll();
     addCopyButtons();
+    scrollToBottom();
+
 };
 
 
@@ -153,10 +156,12 @@ const handleFormSubmit = (e) => {
     promptInput.value = ""; // Clear the input value after submitting
 
     setTimeout(() => {
-        const BotMsgHTML = `<img src="\\storage\\assets\\img\\1.jpg" alt="" class="avatar"><p class="message-text">Just a sex...</p>`;
+        const BotMsgHTML = `<img src="\\storage\\assets\\img\\1.jpg" alt="" class="avatar"><p class="message-text">Just a sec...</p>`;
         const BotMsgDiv = createMsgElement(BotMsgHTML, "bot-message")
         chatsContainer.appendChild(BotMsgDiv);
+        scrollToBottom();
         generateResponse(BotMsgDiv);
+        scrollToBottom();
     }, 600)
 }
 

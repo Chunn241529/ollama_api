@@ -1,5 +1,7 @@
+import os
 from typing import List
-from fastapi import APIRouter, FastAPI, HTTPException, Depends, Query, Request, Response
+from dotenv import load_dotenv
+from fastapi import APIRouter, HTTPException, Depends, Query, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from datetime import datetime, timedelta
@@ -15,12 +17,18 @@ from service.respository.repo_server import (
 
 router = APIRouter()
 
-# HTTPBearer for authorization
 oauth2_scheme = HTTPBearer()
 
-# Secret key and algorithm for JWT
-SECRET_KEY = "a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7r8s9t0"
-ALGORITHM = "HS256"
+import secrets
+
+
+def generate_secret_key(length=50):
+    return secrets.token_urlsafe(length)
+
+
+SECRET_KEY = generate_secret_key()
+load_dotenv()
+ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = 60
 
 
@@ -73,16 +81,6 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(oauth2_sche
         raise HTTPException(status_code=401, detail="Invalid token.")
 
 
-# Routes
-@router.post("/register")
-def register_user(user: UserRegistration):
-    try:
-        add_user(user.dict())
-        return {"message": f"User '{user.username}' registered successfully."}
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
 @router.post("/login")
 def login_user(credentials: UserLogin):
     user = get_user_by_username_or_email(credentials.username_or_email)
@@ -97,6 +95,16 @@ def login_user(credentials: UserLogin):
         raise HTTPException(
             status_code=401, detail="Invalid username/email or password."
         )
+
+
+# Routes
+@router.post("/register")
+def register_user(user: UserRegistration):
+    try:
+        add_user(user.dict())
+        return {"message": f"User '{user.username}' registered successfully."}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 import time

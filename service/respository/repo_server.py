@@ -9,7 +9,7 @@ db_name = "server.sqlite3"
 
 def create_database_client(db_name):
     # Đường dẫn đến file database
-    db_file = f"ui/storage/database_client/{db_name}"
+    db_file = f"storage/database_client/{db_name}"
 
     # Kiểm tra nếu file database tồn tại
     if os.path.exists(db_file):

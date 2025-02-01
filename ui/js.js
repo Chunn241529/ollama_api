@@ -101,7 +101,7 @@ const generateResponse = async (BotMsgDiv) => {
         },
         body: JSON.stringify({
             prompt: userMessage,
-            model: "llama3.2:3b",
+            model: "deepseek-r1:8b",
             chat_ai_id: 0,
             is_deep_think: false,
             is_search: false,

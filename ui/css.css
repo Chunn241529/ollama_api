@@ -152,7 +152,7 @@ body {
 .chats-container .message .message-text {
     padding: 3px 16px;
     word-wrap: break-word;
-    white-space: pre-line;
+    white-space: pre-wrap;
     /* font-family: monospace; */
 }
 

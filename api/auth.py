@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 import jwt  # PyJWT
 from service.respository.repo_server import (
     add_user,
-    get_user_by_username_or_email,
+    get_password_by_username_or_email,
+    get_user_by_email,
     get_db_user_by_username_or_email,
     get_all_users,
     delete_user,
@@ -57,6 +58,15 @@ class UserResponse(BaseModel):
     db_name: str
 
 
+class getUserByEmail(BaseModel):
+    id: int
+    full_name: str
+    email: str
+    avatar: str
+    phone: int
+    db_name: str
+
+
 # Utility to create JWT
 def create_access_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
@@ -83,7 +93,7 @@ def verify_token(credentials: HTTPAuthorizationCredentials = Depends(oauth2_sche
 
 @router.post("/login")
 def login_user(credentials: UserLogin):
-    user = get_user_by_username_or_email(credentials.username_or_email)
+    user = get_password_by_username_or_email(credentials.username_or_email)
     if user and verify_password(credentials.password, user[0]):
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         access_token = create_access_token(
@@ -141,6 +151,22 @@ def get_users(username: str = Depends(verify_token)):
         )
         for user in users
     ]
+
+
+@router.get("/users/{email}", response_model=getUserByEmail)
+def get_user_by_id(email: str, _: str = Depends(verify_token)):
+    user = get_user_by_email(email)
+    if user and len(user) >= 5:
+        return getUserByEmail(
+            id=user[0],
+            full_name=user[2],
+            email=user[3],
+            avatar=user[4],
+            phone=user[5],
+            db_name=user[6],
+        )
+    else:
+        raise HTTPException(status_code=404, detail="User not found.")
 
 
 @router.delete("/users/{username}")

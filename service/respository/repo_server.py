@@ -122,7 +122,7 @@ def add_user(user_data: dict):
         conn.close()
 
 
-def get_user_by_username_or_email(identifier: str) -> Optional[tuple]:
+def get_password_by_username_or_email(identifier: str) -> Optional[tuple]:
     conn, cursor = get_db_cursor()
     try:
         cursor.execute(
@@ -131,6 +131,21 @@ def get_user_by_username_or_email(identifier: str) -> Optional[tuple]:
             WHERE username = ? OR email = ?
             """,
             (identifier, identifier),
+        )
+        return cursor.fetchone()
+    finally:
+        conn.close()
+
+
+def get_user_by_email(identifier: str) -> Optional[tuple]:
+    conn, cursor = get_db_cursor()
+    try:
+        cursor.execute(
+            """
+            SELECT * FROM user_profile
+            WHERE email = ?
+            """,
+            (identifier,),
         )
         return cursor.fetchone()
     finally:

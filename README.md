@@ -18,7 +18,6 @@ git clone https://github.com/Chunn241529/ollama_api.git
 ```
 ## Vào thư mục vừa clone
 - Chạy tập tin cài đặt -> Truy cập vào thư mục dự án vừa clone. Sau đó, chạy tệp **__setup__.bat** để bắt đầu cài đặt:
-- Lưu ý: Đảm bảo rằng bạn đã cài đặt đầy đủ các công cụ cần thiết như Python và các gói phụ thuộc được yêu cầu.
 
 ## 🛠 Yêu cầu hệ thống
 - Hệ điều hành: Windows, macOS, hoặc Linux.

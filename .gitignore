@@ -1,8 +1,5 @@
 __pycache__
 .venv
-server.sqlite3
 test.py
 requirements.txt
 .env
-ui/storage/database_client
-ui/storage

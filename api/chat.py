@@ -80,6 +80,16 @@ async def models(current_user: dict = Depends(verify_token)):
     return {"models": models}
 
 
+# Endpoints
+@router.get("/get_models_test")
+async def models_test():
+    """
+    Lấy danh sách các mô hình có sẵn từ API Llama.
+    """
+    models = get_available_models()
+    return {"models": models}
+
+
 @router.post("/create-chat")
 async def create_chat(request: ManagerChat, current_user: dict = Depends(verify_token)):
     custom_ai = request.custom_ai

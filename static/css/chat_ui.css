@@ -1,10 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Monospace:wght@400;500;600&display=swap');
-
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: monospace;
+    font-family: "Source Code Pro", serif;
 }
 
 :root {
@@ -66,10 +65,6 @@ body {
     list-style: none;
     overflow-x: auto;
     scrollbar-width: none;
-}
-
-.container :is(.app-header, .suggestions) {
-    display: none;
 }
 
 .suggestions .suggestions-item {
@@ -143,12 +138,20 @@ body {
     border: 1px solid var(--secondary-hover-color);
 }
 
+.chats-container .bot-message .modelName {
+    align-self: center;
+    margin-left: 10px;
+    font-size: 2rem;
+    font-family: "Source Code Pro", serif;
+    color: var(--text-color);
+}
+
 .chats-container .message .message-text {
     padding: 3px 16px;
     word-wrap: break-word;
     max-width: 90%;
     white-space: pre-line;
-    font-family: monospace;
+    font-family: "Source Code Pro", serif;
     color: var(--text-color);
 }
 
@@ -157,7 +160,7 @@ body {
     word-wrap: break-word;
     max-width: 90%;
     white-space: pre-line;
-    font-family: monospace;
+    font-family: "Source Code Pro", serif;
     color: var(--think-color);
     border-left: 4px solid var(--think-color);
 }
@@ -293,13 +296,11 @@ table th {
     gap: 10px;
 }
 
-/* Nhóm nút toggle bên trái */
 .prompt-actions-left {
     display: flex;
     gap: 10px;
 }
 
-/* Các nút toggle */
 .prompt-actions-left .toggle-btn {
     min-width: 100px;
     height: 45px;
@@ -307,23 +308,28 @@ table th {
     border: none;
     border-radius: 20px;
     background: var(--secondary-color);
-    /* Ví dụ: màu xám nhạt */
     color: var(--text-color);
     font-size: 1rem;
     cursor: pointer;
-    transition: background 0.3s ease;
+    transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.1s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
-/* Hiệu ứng hover cho nút toggle */
 .prompt-actions-left .toggle-btn:hover {
     background: var(--secondary-hover-color);
+    box-shadow: 0 6px 8px rgba(132, 130, 130, 0.3);
 }
 
-/* Thêm lớp .active khi nút toggle được chọn */
+.prompt-actions-left .toggle-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(60, 60, 60, 0.3);
+}
+
 .prompt-actions-left .toggle-btn.active {
-    background: var(--primary-color);
-    /* Ví dụ: màu xanh dương nổi bật */
+    background: linear-gradient(to right, #1d7efd, #8f6fff);
     color: #fff;
+    /* Có thể giữ độ đổ bóng tương tự để không mất hiệu ứng 3D */
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
 /* Nhóm nút bên phải: đẩy sang bên phải */
@@ -343,22 +349,75 @@ table th {
     color: var(--text-color);
     font-size: 1.2rem;
     cursor: pointer;
-    transition: background 0.3s ease;
+    transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.1s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
 /* Hiệu ứng hover cho nút bên phải */
 .prompt-actions-right button:hover {
     background: var(--secondary-hover-color);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Hiệu ứng active cho nút bên phải */
+.prompt-actions-right button:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.dropdown {
+    min-width: 120px;
+    height: 45px;
+    padding: 0 10px;
+    border: none;
+    border-radius: 20px;
+    background: var(--secondary-color);
+    color: var(--text-color);
+    font-size: 1rem;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    margin-left: 5px;
+    /* Reduce space between the button and the dropdown */
+    appearance: none;
+    /* Remove default dropdown arrow */
+    background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/></svg>');
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    padding-right: 30px;
+    /* Add space for the custom arrow */
+}
+
+.dropdown:hover {
+    background: var(--secondary-hover-color);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+}
+
+.dropdown:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(60, 60, 60, 0.3);
+}
+
+.dropdown option {
+    background: var(--secondary-color);
+    color: var(--text-color);
 }
 
 #send-prompt-btn {
     background: #a0309a;
     font-size: 1.8rem;
     color: #fff;
+    transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.1s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
 }
 
 #send-prompt-btn:hover {
     background: #d882d4;
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
+}
+
+#send-prompt-btn:active {
+    transform: translateY(2px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 /* btn stop response */
@@ -543,3 +602,8 @@ table th {
     animation: fadeIn 0.5s ease-in-out;
     transition: color 0.3s ease-in-out;
 }
+
+/* 
+@media (max-width: 768px) {
+    .prompt-wrapper.hide-controls :where()
+} */

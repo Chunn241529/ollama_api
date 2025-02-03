@@ -112,18 +112,46 @@ function addCopyButtons() {
     }
 }
 
+let model_current;
+
+document.addEventListener('DOMContentLoaded', function () {
+    fetch('http://127.0.0.1:2401/chat/get_models_test')
+        .then(response => response.json())
+        .then(data => {
+            if (data.models && Array.isArray(data.models)) {
+                const dropdown = document.getElementById('deep-think-options');
+                data.models.forEach(model => {
+                    const option = document.createElement('option');
+                    option.value = model;
+                    option.textContent = model;
+                    dropdown.appendChild(option);
+                });
+
+                // Lưu giá trị được chọn vào biến model_current
+                dropdown.addEventListener('change', (event) => {
+                    model_current = event.target.value;
+                    console.log('Model selected:', model_current);
+                });
+            } else {
+                console.error('Invalid data format:', data);
+            }
+        })
+        .catch(error => console.error('Error fetching data:', error));
+});
 
 const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = false) => {
     // Lấy phần tử hiển thị nội dung text và thinking
     const textElement = BotMsgDiv.querySelector(".message-text");
+    const thinkContainer = BotMsgDiv.querySelector(".thinking-container")
     const thinkingOutput = BotMsgDiv.querySelector(".thinking-output");
 
     controller = new AbortController();
 
-    // Nếu bật chế độ deep think thì ẩn loading bar ngay từ đầu
     if (is_deep_think) {
         const loadingBars = BotMsgDiv.querySelectorAll('.loading-bars');
         loadingBars.forEach(lb => lb.style.display = 'none');
+    } else {
+        thinkingOutput.style.borderLeft = 'none';
     }
 
     // Khởi tạo biến riêng cho mỗi loại kết quả
@@ -137,7 +165,7 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
         },
         body: JSON.stringify({
             prompt: userMessage,
-            model: "chunn1.0:latest",
+            model: model_current,
             chat_ai_id: 0,
             is_deep_think: is_deep_think,
             is_search: is_search,
@@ -178,6 +206,7 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
                     resultText += content;
                     // Cập nhật nội dung text
                     textElement.innerHTML = marked.parse(resultText);
+                    // thinkContainer.style.display = `none`;
                 }
             } catch (e) {
                 console.error("JSON parse error:", e);
@@ -228,10 +257,21 @@ document.querySelector("#stop-response-btn").addEventListener("click", () => {
 });
 
 
+const hideSuggestion = (e, suggestion = `none`, header = `none`) => {
+    const suggestions = document.querySelector(".suggestions");
+    const app_header = document.querySelector(".app-header");
+
+    suggestions.style.display = suggestion;
+    app_header.style.display = header;
+}
+
 const handleFormSubmit = (e, is_deep_think, is_search) => {
     e.preventDefault();
     const btn_stop = document.querySelector("#stop-response-btn");
     const btn_send = document.querySelector("#send-prompt-btn");
+    hideSuggestion(e);
+
+
 
     userMessage = promptInput.value.trim();
     if (!userMessage) return;
@@ -248,7 +288,7 @@ const handleFormSubmit = (e, is_deep_think, is_search) => {
 
     setTimeout(() => {
         const BotMsgHTML = `
-            <img src="/storage/assets/img/1.jpg" alt="" class="avatar">
+            <img src="/storage/assets/img/1.jpg" alt="" class="avatar"><p class="modelName">ChunGPT</p>
             <div class="thinking-container">
                 <p class="thinking-output"></p>
             </div>
@@ -302,3 +342,17 @@ promptInput.addEventListener("keydown", (e) => {
     }
 });
 
+
+
+document.querySelectorAll(".suggestions-item").forEach(item => {
+    item.addEventListener("click", () => {
+        promptInput.value = item.querySelector(".text").textContent;
+        promptForm.dispatchEvent(new Event("submit"));
+    })
+})
+
+document.addEventListener("click", ({ target }) => {
+    const wrapper = document.querySelector(".prompt-wrapper");
+    const shouldHide = target.classList.contains(".prompt-input") || (wrapper.classList.contains("hide-controls") && (target.id === "add-file-btn") || (target.id === "stop-response-btn"));
+    wrapper.classList.toggle("hide-controls", shouldHide);
+})

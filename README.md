@@ -12,12 +12,12 @@
 ## 🚀 Hướng dẫn cài đặt
 
 
-Đầu tiên, hãy sao chép project về máy của bạn bằng lệnh sau:
 ```bash
 git clone https://github.com/Chunn241529/ollama_api.git
 ```
 ## Vào thư mục vừa clone
 - Chạy tập tin cài đặt -> Truy cập vào thư mục dự án vừa clone. Sau đó, chạy tệp **__setup__.bat** để bắt đầu cài đặt:
+- Sau khi cài đặt xong Run file __main__.py và truy cập http://127.0.0.1:2401/docs
 
 ## 🛠 Yêu cầu hệ thống
 - Hệ điều hành: Windows, macOS, hoặc Linux.

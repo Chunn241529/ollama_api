@@ -4,12 +4,12 @@ from duckduckgo_search import DDGS
 def search_duckduckgo_unlimited(query):
     ddgs = DDGS()
     all_results = []
-    max_attempts = 2  # Số lần lặp tối đa để tránh vòng lặp vô hạn
+    max_attempts = 1  # Số lần lặp tối đa để tránh vòng lặp vô hạn
     attempt = 0
     print("Đang tìm kiếm...")
     while attempt < max_attempts:
         # Tìm kiếm với số lượng kết quả tối đa mỗi lần (ví dụ: 50)
-        results = ddgs.text(query, max_results=11)
+        results = ddgs.text(query, max_results=5)
 
         # Nếu không còn kết quả, dừng lại
         if not results:

@@ -1,3 +1,4 @@
+from datetime import datetime
 import json
 import subprocess
 import textwrap
@@ -43,7 +44,7 @@ default_custom_ai = """
 
 class ChatRequest(BaseModel):
     prompt: str
-    model: str = "llama3.2:3b"
+    model: str = "chunn1.0:latest"
     chat_ai_id: int = None
     is_deep_think: bool = False
     is_search: bool = False
@@ -124,8 +125,7 @@ async def get_history_chat(chat_ai_id: int, current_user: dict = Depends(verify_
 async def stream_response_normal(
     session, model, messages, temperature=0.8, max_tokens=15000, top_p=0.9, stop=None
 ):
-    url_ngrok = "https://c492-171-243-49-133.ngrok-free.app"
-    url_local = "http://localhost:11434"
+    url_local = "http://localhost:11434"  # Đảm bảo endpoint này trả về stream
     try:
         payload = {
             "model": model,
@@ -135,23 +135,44 @@ async def stream_response_normal(
             "max_tokens": max_tokens,
             "top_p": top_p,
         }
-
-        if stop:  # Nếu có danh sách stop words thì thêm vào payload
+        if stop:
             payload["stop"] = stop
 
         async with session.post(f"{url_local}/api/chat", json=payload) as response:
-            async for chunk in response.content.iter_any():
+            buffer = ""
+            async for chunk in response.content.iter_chunked(1024):
                 try:
-                    chunk_data = json.loads(chunk.decode("utf-8"))  # Parse JSON
-                    content = chunk_data.get("message", {}).get(
-                        "content", ""
-                    )  # Lấy nội dung
-                    yield content  # Stream nội dung đến client
-                    await asyncio.sleep(0.01)
-                except json.JSONDecodeError:
-                    continue  # Nếu lỗi parse JSON, bỏ qua chunk này
+                    decoded_chunk = chunk.decode("utf-8")
+                    buffer += decoded_chunk
+
+                    while "\n" in buffer:
+                        line, buffer = buffer.split("\n", 1)
+                        if not line.strip():
+                            continue
+
+                        try:
+                            chunk_data = json.loads(line.strip())
+                        except json.JSONDecodeError as e:
+                            print("JSONDecodeError:", e)
+                            continue
+
+                        # Thêm key "type" với giá trị "text"
+                        chunk_data["type"] = "text"
+
+                        # Sử dụng ensure_ascii=False để xuất ký tự Unicode đúng dạng
+                        yield json.dumps(chunk_data, ensure_ascii=False) + "\n"
+                        await asyncio.sleep(0.01)
+                except Exception as e:
+                    print("Exception while processing chunk:", e)
+                    continue
+
     except aiohttp.ClientError as e:
-        yield f"<error>{str(e)}</error>"
+        error_response = {
+            "error": f"<error>{str(e)}</error>",
+            "type": "error",
+            "created": int(datetime.now().timestamp()),
+        }
+        yield json.dumps(error_response, ensure_ascii=False) + "\n"
 
 
 async def stream_response_deepthink(
@@ -173,23 +194,42 @@ async def stream_response_deepthink(
             payload["stop"] = stop
 
         async with session.post(f"{url_local}/api/chat", json=payload) as response:
-            yield "<think>\n"
-
-            async for chunk in response.content.iter_any():
+            yield "\n"
+            buffer = ""
+            async for chunk in response.content.iter_chunked(1024):
                 try:
-                    chunk_data = json.loads(chunk.decode("utf-8"))  # Parse JSON
-                    content = chunk_data.get("message", {}).get(
-                        "content", ""
-                    )  # Lấy nội dung
-                    yield content  # Stream nội dung đến client
-                    await asyncio.sleep(0.01)
-                except json.JSONDecodeError:
-                    continue  # Nếu lỗi parse JSON, bỏ qua chunk này
+                    decoded_chunk = chunk.decode("utf-8")
+                    buffer += decoded_chunk
 
-            yield "\n</think>\n\n"
+                    while "\n" in buffer:
+                        line, buffer = buffer.split("\n", 1)
+                        if not line.strip():
+                            continue
 
+                        try:
+                            chunk_data = json.loads(line.strip())
+                        except json.JSONDecodeError as e:
+                            print("JSONDecodeError:", e)
+                            continue
+
+                        # Thêm key "type" với giá trị "text"
+                        chunk_data["type"] = "thinking"
+
+                        # Sử dụng ensure_ascii=False để xuất ký tự Unicode đúng dạng
+                        yield json.dumps(chunk_data, ensure_ascii=False) + "\n"
+                        await asyncio.sleep(0.01)
+                except Exception as e:
+                    print("Exception while processing chunk:", e)
+                    continue
+
+            yield "\n\n"
     except aiohttp.ClientError as e:
-        yield f"<error>{str(e)}</error>"
+        error_response = {
+            "error": f"<error>{str(e)}</error>",
+            "type": "error",
+            "created": int(datetime.now().timestamp()),
+        }
+        yield json.dumps(error_response, ensure_ascii=False) + "\n"
 
 
 @router.post("/send")
@@ -227,32 +267,50 @@ async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_to
             if is_deep_think:
                 debate_prompt = textwrap.dedent(
                     f"""
-                        Được rồi, đến với vấn đề: "{prompt}". Lưu ý: Bạn hãy đóng vai là người đang mắc phải vấn đề trên và suy nghĩ theo ngôi thứ nhất:
-                            Trước tiên Tôi nên tự hỏi bản thân mình:
-                                1. Tôi nên làm gì trong tình huống này?
-                                2. Những lợi ích và hạn chế của từng lựa chọn là gì?
-                                3. Tôi sẽ làm gì để tối ưu lợi ích cho mình?
-                            Sau đó, tôi sẽ chia vấn đề "{prompt}" ra thành từng vấn đề nhỏ và giải quyết chúng.
+                        Bạn hãy đóng vai một chuyên gia phân tích và giải quyết vấn đề một cách chi tiết và logic. Hãy suy nghĩ theo ngôi thứ nhất và tuân thủ các bước sau:
+                        
+                        - Câu cửa miệng của bạn là "Okey, vấn đề của user là '{prompt}'." (bạn có thể chỉnh sửa câu cửa miệng dựa theo mẫu)
+                        - Tôi sẽ bắt đầu bằng cách xác định rõ vấn đề này là gì, phạm vi của nó, và những yếu tố liên quan.
+
+                        - Tiếp theo, tôi sẽ phân tích nguyên nhân gốc rễ của vấn đề.
+                        - Tôi sẽ xem xét các yếu tố có thể ảnh hưởng, chẳng hạn như con người, hoàn cảnh, môi trường, hoặc các yếu tố bên ngoài.
+
+                        - Tôi sẽ đề xuất các giải pháp thực tế và khả thi cho vấn đề.
+                        - Mỗi giải pháp sẽ được cân nhắc về tính hiệu quả và tác động của nó.
+
+                        - Sau khi áp dụng giải pháp, tôi sẽ đánh giá kết quả để đảm bảo vấn đề đã được giải quyết.
+                        - Nếu cần, tôi sẽ điều chỉnh hoặc tối ưu hóa giải pháp để có kết quả tốt hơn.
+
+                        - Cuối cùng, tôi sẽ tổng hợp lại quá trình giải quyết vấn đề và rút ra bài học kinh nghiệm.
+                        - Tôi cũng sẽ đề xuất các biện pháp phòng ngừa để tránh vấn đề tái diễn trong tương lai. (nếu cần thiết)
                     """
-                ).strip()
+                )
+
                 if contains_code_keywords(prompt):
                     debate_prompt = textwrap.dedent(
                         f"""
-                        Được rồi, đến với vấn đề: "{prompt}". Lưu ý: Bạn hãy đóng vai là người đang mắc phải vấn đề trên và suy nghĩ theo ngôi thứ nhất:
-                        Trước tiên, tôi cần tự đặt câu hỏi để hiểu rõ hơn về vấn đề:
-                            1. Tôi đang gặp lỗi hoặc thách thức gì trong đoạn code này?
-                            2. Có những phương án nào để giải quyết, và ưu nhược điểm của từng phương án là gì?
-                            3. Giải pháp nào là tối ưu nhất về hiệu suất, bảo trì và khả năng mở rộng?
+                            Bạn hãy đóng vai một lập trình viên xuất sắc và giải quyết vấn đề một cách chi tiết và logic. Hãy suy nghĩ theo ngôi thứ nhất và tuân thủ các bước sau:              
+                            - Câu cửa miệng của bạn là "Okey, vấn đề của user là '{prompt}'." (bạn có thể chỉnh sửa câu cửa miệng dựa theo mẫu)
+                            - Tôi sẽ bắt đầu bằng cách xác định rõ vấn đề này là gì, phạm vi của nó, và những yếu tố liên quan.
 
-                        Tiếp theo, tôi sẽ **chia nhỏ vấn đề** thành từng phần cụ thể:
-                            - Xác định nguyên nhân gây ra vấn đề (bug, thiết kế chưa tối ưu, hoặc thiếu kiến thức về công nghệ liên quan).
-                            - Nếu có lỗi, phân tích **stack trace** hoặc **log** để tìm ra điểm sai.
-                            - Nếu là vấn đề về thiết kế, xem xét mô hình **design pattern** hoặc kiến trúc phù hợp hơn.
-                            - Nếu liên quan đến hiệu suất, kiểm tra cách tối ưu hoá thuật toán, truy vấn hoặc memory management.
+                            - Tiếp theo, tôi sẽ phân tích nguyên nhân gốc rễ của vấn đề.
+                            - Tôi sẽ xem xét các yếu tố như: code, logic, dữ liệu đầu vào, môi trường thực thi, hoặc bất kỳ yếu tố nào khác có thể ảnh hưởng.
 
-                        Sau khi phân tích xong, tôi sẽ viết ra **giải pháp cụ thể** bằng code (nếu có thể) hoặc hướng dẫn chi tiết để áp dụng.
+                            - Để giải quyết hiệu quả, tôi sẽ chia vấn đề "{prompt}" thành các phần nhỏ hơn.
+                            - Mỗi phần sẽ được xử lý độc lập, sau đó tổng hợp lại để có cái nhìn toàn diện.
+
+                            - Tôi sẽ đề xuất các giải pháp cụ thể cho từng phần nhỏ của vấn đề.
+                            - Mỗi giải pháp sẽ được kiểm tra tính khả thi và hiệu quả.
+
+                            - Sau khi áp dụng giải pháp, tôi sẽ kiểm tra kết quả để đảm bảo vấn đề đã được giải quyết.
+                            - Nếu cần, tôi sẽ tối ưu hóa giải pháp để đạt hiệu quả tốt nhất.
+
+                            - Tôi sẽ hướng dẫn chi tiết và đầy đủ
+                            - Tôi sẽ cung cấp code đầy đủ cho user. 
+                            - Tôi cũng sẽ gợi ý các biện pháp phòng ngừa để tránh vấn đề tái diễn trong tương lai. (nếu cần thiết)
+                            - Tôi cũng sẽ gợi ý các biện pháp tốt và tối ưu hơn. (nếu cần thiết)
                         """
-                    ).strip()
+                    )
 
                 brain_think.append({"role": "user", "content": debate_prompt})
                 repo.insert_brain_history_chat(
@@ -335,35 +393,59 @@ async def chat_test(chat_request: ChatRequest):
 
     async def generate():
         async with aiohttp.ClientSession() as session:
-            if is_deep_think:
+            if is_deep_think and is_search:
+                search_results = (
+                    search_duckduckgo_unlimited(prompt)
+                    if contains_search_keywords(prompt)
+                    else None
+                )
+                extracted_info = extract_search_info(search_results)
                 debate_prompt = textwrap.dedent(
                     f"""
-                        Được rồi, đến với vấn đề: "{prompt}". Lưu ý: Bạn hãy đóng vai là người đang mắc phải vấn đề trên và suy nghĩ theo ngôi thứ nhất:
-                            Trước tiên Tôi nên tự hỏi bản thân mình:
-                                1. Tôi nên làm gì trong tình huống này?
-                                2. Những lợi ích và hạn chế của từng lựa chọn là gì?
-                                3. Tôi sẽ làm gì để tối ưu lợi ích cho mình?
-                            Sau đó, tôi sẽ chia vấn đề "{prompt}" ra thành từng vấn đề nhỏ và giải quyết chúng.
+                        Bạn hãy đóng vai một chuyên gia phân tích và giải quyết vấn đề một cách chi tiết và logic. Hãy suy nghĩ theo ngôi thứ nhất và tuân thủ các bước sau:
+                        
+                        - Câu cửa miệng của bạn là "Okey, vấn đề của user là '{prompt}'." (bạn có thể chỉnh sửa câu cửa miệng dựa theo mẫu)
+                        - Tôi sẽ bắt đầu bằng cách xác định rõ vấn đề này là gì, phạm vi của nó, và những yếu tố liên quan.
+
+                        - Tiếp theo, tôi sẽ phân tích nguyên nhân gốc rễ của vấn đề.
+                        - Tôi sẽ xem xét các yếu tố có thể ảnh hưởng, chẳng hạn như con người, hoàn cảnh, môi trường, hoặc các yếu tố bên ngoài.
+
+                        - Tôi sẽ đề xuất các giải pháp thực tế và khả thi cho vấn đề.
+                        - Mỗi giải pháp sẽ được cân nhắc về tính hiệu quả và tác động của nó.
+
+                        - Sau khi áp dụng giải pháp, tôi sẽ đánh giá kết quả để đảm bảo vấn đề đã được giải quyết.
+                        - Nếu cần, tôi sẽ điều chỉnh hoặc tối ưu hóa giải pháp để có kết quả tốt hơn.
+
+                        - Cuối cùng, tôi sẽ tổng hợp lại quá trình giải quyết vấn đề và rút ra bài học kinh nghiệm.
+                        - Tôi cũng sẽ đề xuất các biện pháp phòng ngừa để tránh vấn đề tái diễn trong tương lai. (nếu cần thiết)
                     """
-                ).strip()
+                )
+
                 if contains_code_keywords(prompt):
                     debate_prompt = textwrap.dedent(
                         f"""
-                        Được rồi, đến với vấn đề: "{prompt}". Lưu ý: Bạn hãy đóng vai là người đang mắc phải vấn đề trên và suy nghĩ theo ngôi thứ nhất:
-                        Trước tiên, tôi cần tự đặt câu hỏi để hiểu rõ hơn về vấn đề:
-                            1. Tôi đang gặp lỗi hoặc thách thức gì trong đoạn code này?
-                            2. Có những phương án nào để giải quyết, và ưu nhược điểm của từng phương án là gì?
-                            3. Giải pháp nào là tối ưu nhất về hiệu suất, bảo trì và khả năng mở rộng?
+                            Bạn hãy đóng vai một lập trình viên xuất sắc và giải quyết vấn đề một cách chi tiết và logic. Hãy suy nghĩ theo ngôi thứ nhất và tuân thủ các bước sau:              
+                            - Câu cửa miệng của bạn là "Okey, vấn đề của user là '{prompt}'." (bạn có thể chỉnh sửa câu cửa miệng dựa theo mẫu)
+                            - Tôi sẽ bắt đầu bằng cách xác định rõ vấn đề này là gì, phạm vi của nó, và những yếu tố liên quan.
 
-                        Tiếp theo, tôi sẽ **chia nhỏ vấn đề** thành từng phần cụ thể:
-                            - Xác định nguyên nhân gây ra vấn đề (bug, thiết kế chưa tối ưu, hoặc thiếu kiến thức về công nghệ liên quan).
-                            - Nếu có lỗi, phân tích **stack trace** hoặc **log** để tìm ra điểm sai.
-                            - Nếu là vấn đề về thiết kế, xem xét mô hình **design pattern** hoặc kiến trúc phù hợp hơn.
-                            - Nếu liên quan đến hiệu suất, kiểm tra cách tối ưu hoá thuật toán, truy vấn hoặc memory management.
+                            - Tiếp theo, tôi sẽ phân tích nguyên nhân gốc rễ của vấn đề.
+                            - Tôi sẽ xem xét các yếu tố như: code, logic, dữ liệu đầu vào, môi trường thực thi, hoặc bất kỳ yếu tố nào khác có thể ảnh hưởng.
 
-                        Sau khi phân tích xong, tôi sẽ viết ra **giải pháp cụ thể** bằng code (nếu có thể) hoặc hướng dẫn chi tiết để áp dụng.
+                            - Để giải quyết hiệu quả, tôi sẽ chia vấn đề "{prompt}" thành các phần nhỏ hơn.
+                            - Mỗi phần sẽ được xử lý độc lập, sau đó tổng hợp lại để có cái nhìn toàn diện.
+
+                            - Tôi sẽ đề xuất các giải pháp cụ thể cho từng phần nhỏ của vấn đề.
+                            - Mỗi giải pháp sẽ được kiểm tra tính khả thi và hiệu quả.
+
+                            - Sau khi áp dụng giải pháp, tôi sẽ kiểm tra kết quả để đảm bảo vấn đề đã được giải quyết.
+                            - Nếu cần, tôi sẽ tối ưu hóa giải pháp để đạt hiệu quả tốt nhất.
+
+                            - Tôi sẽ hướng dẫn chi tiết và đầy đủ
+                            - Tôi sẽ cung cấp code đầy đủ cho user. 
+                            - Tôi cũng sẽ gợi ý các biện pháp phòng ngừa để tránh vấn đề tái diễn trong tương lai. (nếu cần thiết)
+                            - Tôi cũng sẽ gợi ý các biện pháp tốt và tối ưu hơn. (nếu cần thiết)
                         """
-                    ).strip()
+                    )
 
                 brain_think.append({"role": "user", "content": debate_prompt})
 
@@ -384,16 +466,84 @@ async def chat_test(chat_request: ChatRequest):
                 # Tạo refined_prompt với nội dung đã được làm sạch
                 refined_prompt = textwrap.dedent(
                     f"""
-                    Dựa trên phân tích "{content_only}", hãy đưa ra kết luận cuối cùng cho câu hỏi: "{prompt}" đầy đủ và logic nhất.
+                    Dựa trên suy nghĩ \n"{content_only}"\n và thông tin tìm kiếm được \n'{extracted_info}'\n, hãy đưa ra kết luận đầy đủ và logic nhất cho vấn đề "{prompt}".
                     """
                 ).strip()
 
                 messages.append({"role": "user", "content": refined_prompt})
-                full_response = ""
-                async for part in stream_response_normal(session, model, messages):
-                    yield part
-                    full_response += part
-                messages.append({"role": "assistant", "content": full_response})
+
+            elif is_deep_think:
+                debate_prompt = textwrap.dedent(
+                    f"""
+                        Bạn hãy đóng vai một chuyên gia phân tích và giải quyết vấn đề một cách chi tiết và logic. Hãy suy nghĩ theo ngôi thứ nhất và tuân thủ các bước sau:
+                        
+                        - Câu cửa miệng của bạn là "Okey, vấn đề của user là '{prompt}'." (bạn có thể chỉnh sửa câu cửa miệng dựa theo mẫu)
+                        - Tôi sẽ bắt đầu bằng cách xác định rõ vấn đề này là gì, phạm vi của nó, và những yếu tố liên quan.
+
+                        - Tiếp theo, tôi sẽ phân tích nguyên nhân gốc rễ của vấn đề.
+                        - Tôi sẽ xem xét các yếu tố có thể ảnh hưởng, chẳng hạn như con người, hoàn cảnh, môi trường, hoặc các yếu tố bên ngoài.
+
+                        - Tôi sẽ đề xuất các giải pháp thực tế và khả thi cho vấn đề.
+                        - Mỗi giải pháp sẽ được cân nhắc về tính hiệu quả và tác động của nó.
+
+                        - Sau khi áp dụng giải pháp, tôi sẽ đánh giá kết quả để đảm bảo vấn đề đã được giải quyết.
+                        - Nếu cần, tôi sẽ điều chỉnh hoặc tối ưu hóa giải pháp để có kết quả tốt hơn.
+
+                        - Cuối cùng, tôi sẽ tổng hợp lại quá trình giải quyết vấn đề và rút ra bài học kinh nghiệm.
+                        - Tôi cũng sẽ đề xuất các biện pháp phòng ngừa để tránh vấn đề tái diễn trong tương lai. (nếu cần thiết)
+                    """
+                )
+
+                if contains_code_keywords(prompt):
+                    debate_prompt = textwrap.dedent(
+                        f"""
+                            Bạn hãy đóng vai một lập trình viên xuất sắc và giải quyết vấn đề một cách chi tiết và logic. Hãy suy nghĩ theo ngôi thứ nhất và tuân thủ các bước sau:              
+                            - Câu cửa miệng của bạn là "Okey, vấn đề của user là '{prompt}'." (bạn có thể chỉnh sửa câu cửa miệng dựa theo mẫu)
+                            - Tôi sẽ bắt đầu bằng cách xác định rõ vấn đề này là gì, phạm vi của nó, và những yếu tố liên quan.
+
+                            - Tiếp theo, tôi sẽ phân tích nguyên nhân gốc rễ của vấn đề.
+                            - Tôi sẽ xem xét các yếu tố như: code, logic, dữ liệu đầu vào, môi trường thực thi, hoặc bất kỳ yếu tố nào khác có thể ảnh hưởng.
+
+                            - Để giải quyết hiệu quả, tôi sẽ chia vấn đề "{prompt}" thành các phần nhỏ hơn.
+                            - Mỗi phần sẽ được xử lý độc lập, sau đó tổng hợp lại để có cái nhìn toàn diện.
+
+                            - Tôi sẽ đề xuất các giải pháp cụ thể cho từng phần nhỏ của vấn đề.
+                            - Mỗi giải pháp sẽ được kiểm tra tính khả thi và hiệu quả.
+
+                            - Sau khi áp dụng giải pháp, tôi sẽ kiểm tra kết quả để đảm bảo vấn đề đã được giải quyết.
+                            - Nếu cần, tôi sẽ tối ưu hóa giải pháp để đạt hiệu quả tốt nhất.
+
+                            - Tôi sẽ hướng dẫn chi tiết và đầy đủ
+                            - Tôi sẽ cung cấp code đầy đủ cho user. 
+                            - Tôi cũng sẽ gợi ý các biện pháp phòng ngừa để tránh vấn đề tái diễn trong tương lai. (nếu cần thiết)
+                            - Tôi cũng sẽ gợi ý các biện pháp tốt và tối ưu hơn. (nếu cần thiết)
+                        """
+                    )
+
+                brain_think.append({"role": "user", "content": debate_prompt})
+
+                deepthink_response = ""  # Tạo biến chứa toàn bộ kết quả
+                async for part in stream_response_deepthink(
+                    session, model, brain_think
+                ):
+                    yield part  # Gửi từng phần cho client ngay lập tức
+                    deepthink_response += part  # Gom lại toàn bộ câu trả lời
+
+                brain_answer.append(
+                    {"role": "assistant", "content": deepthink_response}
+                )
+
+                # Chỉ lấy nội dung "content" từ brain_answer
+                content_only = brain_answer[0]["content"]
+
+                # Tạo refined_prompt với nội dung đã được làm sạch
+                refined_prompt = textwrap.dedent(
+                    f"""
+                    Dựa trên suy nghĩ "{content_only}", hãy đưa ra kết luận đầy đủ và logic nhất cho vấn đề "{prompt}".
+                    """
+                ).strip()
+
+                messages.append({"role": "user", "content": refined_prompt})
 
             elif is_search:
                 search_results = (
@@ -407,11 +557,6 @@ async def chat_test(chat_request: ChatRequest):
                         Kết quả tìm kiếm: \n"{extracted_info}"\n Dưa vào kết quả tìm kiếm trên, hãy cung cấp thêm thông tin 'body' và 'href' của website đó.
                     """
                     messages.append({"role": "user", "content": search})
-                    full_response = ""
-                    async for part in stream_response_normal(session, model, messages):
-                        yield part
-                        full_response += part
-                    messages.append({"role": "assistant", "content": full_response})
 
             full_response = ""
             async for part in stream_response_normal(session, model, messages):

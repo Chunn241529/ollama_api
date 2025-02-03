@@ -13,17 +13,16 @@ textarea.addEventListener('input', () => {
 const searchToggle = document.getElementById('search-toggle');
 const deepThinkToggle = document.getElementById('deep-think-toggle');
 
-let togggle_deepthink = false;
-let togggle_search = false;
+let toggle_deepthink = false;
+let toggle_search = false;
 
 searchToggle.addEventListener('click', () => {
     searchToggle.classList.toggle('active');
     if (searchToggle.classList.contains('active')) {
-        deepThinkToggle.classList.remove('active');
-        togggle_search = true;
+        toggle_search = true;
         console.log('Chế độ tìm kiếm được kích hoạt');
     } else {
-        togggle_search = false;
+        toggle_search = false;
         console.log('Chế độ tìm kiếm bị tắt');
     }
 });
@@ -31,11 +30,10 @@ searchToggle.addEventListener('click', () => {
 deepThinkToggle.addEventListener('click', () => {
     deepThinkToggle.classList.toggle('active');
     if (deepThinkToggle.classList.contains('active')) {
-        searchToggle.classList.remove('active');
-        togggle_deepthink = true;
+        toggle_deepthink = true;
         console.log('Chế độ deep think được kích hoạt');
     } else {
-        togggle_deepthink = false;
+        toggle_deepthink = false;
         console.log('Chế độ deep think bị tắt');
     }
 });
@@ -46,6 +44,7 @@ const chatsContainer = document.querySelector(".chats-container");
 const promptForm = document.querySelector(".prompt-form");
 const promptInput = promptForm.querySelector(".prompt-input");
 
+let controller;
 let userMessage = "";
 
 const createMsgElement = (content, className) => {
@@ -58,51 +57,78 @@ const createMsgElement = (content, className) => {
 const scrollToBottom = () => container.scrollTo({ top: container.scrollHeight, behavior: "smooth" })
 
 function addCopyButtons() {
-    document.querySelectorAll('pre code').forEach((block, index) => {
+    const blocks = document.querySelectorAll('pre code');
+    if (blocks.length === 0) return;
+
+    blocks.forEach((block, index) => {
         const pre = block.parentElement;
 
-        // Nếu nút copy đã tồn tại thì bỏ qua
+        // Nếu đã có nút copy thì bỏ qua
         if (pre.querySelector('.copy-btn')) return;
 
         // Tạo nút copy
         const copyBtn = document.createElement('button');
         copyBtn.className = 'copy-btn';
-        // Sử dụng icon copy của Material Icons (đảm bảo đã thêm font Material Icons vào trang)
         copyBtn.innerHTML = `<i class="material-symbols-rounded">content_copy</i>`;
 
-        // Tạo id cho code block nếu chưa có
+        // Đặt ID cho block nếu chưa có
         if (!block.id) {
             block.id = `code-block-${index}`;
         }
-        // Gán thuộc tính data-clipboard-target cho nút copy
         copyBtn.setAttribute('data-clipboard-target', `#${block.id}`);
 
-        // Đặt vị trí cho nút copy (ví dụ: góc trên bên phải của khối code)
-        pre.style.position = 'relative';
-        copyBtn.style.position = 'absolute';
-        copyBtn.style.top = '5px';
-        copyBtn.style.right = '5px';
-        copyBtn.style.cursor = 'pointer';
-        copyBtn.style.border = 'none';
-        copyBtn.style.background = 'transparent'; // Nút trong suốt
-        copyBtn.style.padding = '4px';
-        copyBtn.style.display = 'flex';
-        copyBtn.style.alignItems = 'center';
-        copyBtn.style.justifyContent = 'center';
-        copyBtn.style.color = '#aaa'; // Màu icon ban đầu
+        // Định dạng nút copy bằng CSS inline
+        copyBtn.style.cssText = `
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #aaa;
+        `;
 
-        // Thêm nút copy vào thẻ pre
+        pre.style.position = 'relative';
         pre.appendChild(copyBtn);
     });
 
-    // Khởi tạo Clipboard.js cho các nút copy
-    new ClipboardJS('.copy-btn');
+    // Khởi tạo ClipboardJS một lần cho tất cả nút copy
+    if (document.querySelectorAll('.copy-btn').length > 0) {
+        const clipboard = new ClipboardJS('.copy-btn');
+
+        clipboard.on('success', function (e) {
+            // Xóa lựa chọn (highlight) code sau khi copy
+            e.clearSelection();
+            // Thay đổi nội dung của nút copy thành "Đã lưu"
+            e.trigger.innerHTML = "Đã lưu";
+            setTimeout(() => {
+                e.trigger.innerHTML = `<i class="material-symbols-rounded">content_copy</i>`;
+            }, 3000);
+        });
+    }
 }
 
 
-
 const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = false) => {
+    // Lấy phần tử hiển thị nội dung text và thinking
     const textElement = BotMsgDiv.querySelector(".message-text");
+    const thinkingOutput = BotMsgDiv.querySelector(".thinking-output");
+
+    controller = new AbortController();
+
+    // Nếu bật chế độ deep think thì ẩn loading bar ngay từ đầu
+    if (is_deep_think) {
+        const loadingBars = BotMsgDiv.querySelectorAll('.loading-bars');
+        loadingBars.forEach(lb => lb.style.display = 'none');
+    }
+
+    // Khởi tạo biến riêng cho mỗi loại kết quả
+    let resultThinking = "";
+    let resultText = "";
 
     const response = await fetch("http://127.0.0.1:2401/chat/test", {
         method: "POST",
@@ -111,11 +137,12 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
         },
         body: JSON.stringify({
             prompt: userMessage,
-            model: "llama3.2:3b",
+            model: "chunn1.0:latest",
             chat_ai_id: 0,
             is_deep_think: is_deep_think,
             is_search: is_search,
         }),
+        signal: controller.signal
     });
 
     if (!response.ok) {
@@ -125,85 +152,153 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
 
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
-    let result = "";
+    let buffer = "";
 
     while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
-        result += decoder.decode(value, { stream: true });
+        buffer += decoder.decode(value, { stream: true });
+        let lines = buffer.split("\n");
+        buffer = lines.pop();
 
-        // In log kiểm tra xem thẻ <think> có bị mất không
-        console.log("Streaming content:", result);
+        for (let line of lines) {
+            if (!line.trim()) continue;
 
-        // Parse Markdown nhưng giữ nguyên thẻ HTML
-        let parsedResult = marked.parse(result);
+            try {
+                const jsonData = JSON.parse(line);
+                let content = (jsonData.message && jsonData.message.content) ? jsonData.message.content : "";
 
-        // Thay thế thẻ <think> thành <span> để đổi màu
-        parsedResult = parsedResult.replace(/&lt;think&gt;(.*?)&lt;\/think&gt;/g, '<span style="color: black;">$1</span>');
-
-
-        textElement.innerHTML = parsedResult;
+                // Xử lý riêng theo type của message
+                if (jsonData.type === "thinking") {
+                    resultThinking += content;
+                    // Cập nhật nội dung thinking
+                    thinkingOutput.innerHTML = marked.parse(resultThinking);
+                } else if (jsonData.type === "text") {
+                    resultText += content;
+                    // Cập nhật nội dung text
+                    textElement.innerHTML = marked.parse(resultText);
+                }
+            } catch (e) {
+                console.error("JSON parse error:", e);
+            }
+        }
 
         hljs.highlightAll();
         addCopyButtons();
         scrollToBottom();
     }
 
-    // Xử lý lần cuối sau khi toàn bộ dữ liệu đã nhận xong
-    result += decoder.decode(new Uint8Array(), { stream: false });
+    // Nếu có dữ liệu còn lại trong buffer sau khi đọc xong
+    if (buffer.trim()) {
+        try {
+            const jsonData = JSON.parse(buffer);
+            let content = (jsonData.message && jsonData.message.content) ? jsonData.message.content : "";
 
-    // Log nội dung cuối cùng
-    console.log("Final content:", result);
-
-    let parsedResult = marked.parse(result);
-    parsedResult = parsedResult.replace(/&lt;think&gt;(.*?)&lt;\/think&gt;/g, '<span style="color: black;">$1</span>');
-
-    textElement.innerHTML = parsedResult;
+            if (jsonData.type === "thinking") {
+                resultThinking += content;
+                thinkingOutput.innerHTML = marked.parse(resultThinking);
+            } else if (jsonData.type === "text") {
+                resultText += content;
+                textElement.innerHTML = marked.parse(resultText);
+            }
+        } catch (e) {
+            console.error("JSON parse error on final buffer:", e);
+        }
+    }
 
     hljs.highlightAll();
     addCopyButtons();
     scrollToBottom();
+
+    // Khi hoàn thành việc generate response, thay đổi trạng thái nút
+    const btn_stop = document.querySelector("#stop-response-btn");
+    const btn_send = document.querySelector("#send-prompt-btn");
+    btn_stop.style.display = "none";  // Ẩn nút stop
+    btn_send.style.display = "block"; // Hiển thị nút send
 };
 
+// Ngừng xử lý nếu người dùng nhấn nút Stop
+document.querySelector("#stop-response-btn").addEventListener("click", () => {
+    controller?.abort();
+    const btn_stop = document.querySelector("#stop-response-btn");
+    const btn_send = document.querySelector("#send-prompt-btn");
+    btn_stop.style.display = "none";  // Ẩn nút stop
+    btn_send.style.display = "block"; // Hiển thị nút send
+});
 
 
 const handleFormSubmit = (e, is_deep_think, is_search) => {
     e.preventDefault();
+    const btn_stop = document.querySelector("#stop-response-btn");
+    const btn_send = document.querySelector("#send-prompt-btn");
+
     userMessage = promptInput.value.trim();
     if (!userMessage) return;
 
     const userMsgHTML = `<p class="message-text"></p>`;
-    const userMsgDiv = createMsgElement(userMsgHTML, "user-message")
+    const userMsgDiv = createMsgElement(userMsgHTML, "user-message");
     userMsgDiv.querySelector(".message-text").textContent = userMessage;
     chatsContainer.appendChild(userMsgDiv);
 
     promptInput.value = ""; // Clear the input value after submitting
+    textarea.style.height = `70px`;
+    btn_stop.style.display = `block`;
+    btn_send.style.display = `none`;
 
     setTimeout(() => {
-        const BotMsgHTML = `<img src="/storage/assets/img/1.jpg" alt="" class="avatar"><p class="message-text">Just a sec...</p>`;
-        const BotMsgDiv = createMsgElement(BotMsgHTML, "bot-message")
-        chatsContainer.appendChild(BotMsgDiv);
-        scrollToBottom();
-        if (togggle_search) {
-            generateResponse(BotMsgDiv, is_deep_think = false, is_search = true);
-            scrollToBottom();
-        } else if (togggle_deepthink) {
-            generateResponse(BotMsgDiv, is_deep_think = true, is_search = false);
-            scrollToBottom();
-        } else {
-            generateResponse(BotMsgDiv, is_deep_think = false, is_search = false);
-            scrollToBottom();
-        }
+        const BotMsgHTML = `
+            <img src="/storage/assets/img/1.jpg" alt="" class="avatar">
+            <div class="thinking-container">
+                <p class="thinking-output"></p>
+            </div>
+            <p class="message-text">
+                <span class="loading-bars">
+                    <span></span><span></span><span></span>
+                </span>
+                <span class="loading-bars">
+                    <span></span><span></span>
+                </span>
+                <span class="loading-bars" style="width: 410px;">
+                    <span></span>
+                </span>
+            </p>
+        `;
 
-    }, 600)
-}
+        const BotMsgDiv = createMsgElement(BotMsgHTML, "bot-message");
+        chatsContainer.appendChild(BotMsgDiv);
+
+        if (toggle_search && toggle_deepthink) {
+            generateResponse(BotMsgDiv, true, true);
+        } else if (toggle_search) {
+            generateResponse(BotMsgDiv, false, true);
+        } else if (toggle_deepthink) {
+            generateResponse(BotMsgDiv, true, false);
+        } else {
+            generateResponse(BotMsgDiv, false, false);
+        }
+    }, 600);
+};
+
+
 
 promptForm.addEventListener("submit", handleFormSubmit);
 
-// Add event listener for Enter key press
-promptInput.addEventListener("keypress", (e) => {
+promptInput.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
-        handleFormSubmit(e);
+        if (e.shiftKey) {
+            // Nếu giữ Shift + Enter, chèn xuống dòng
+            e.preventDefault(); // Ngăn chặn gửi form
+            const cursorPos = promptInput.selectionStart;
+            const textBefore = promptInput.value.substring(0, cursorPos);
+            const textAfter = promptInput.value.substring(cursorPos);
+            promptInput.value = textBefore + "\n" + textAfter;
+            promptInput.selectionStart = promptInput.selectionEnd = cursorPos + 1; // Đặt con trỏ sau dòng mới
+        } else {
+            // Nếu chỉ nhấn Enter, gửi form
+            e.preventDefault();
+            handleFormSubmit(e);
+        }
     }
 });
+

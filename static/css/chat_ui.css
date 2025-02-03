@@ -9,6 +9,7 @@
 
 :root {
     --text-color: #edf3ff;
+    --think-color: #aaaaaad8;
     --subheading-color: #97a7ca;
     --placeholder-color: #c3cdde;
     --primary-color: #101623;
@@ -135,7 +136,6 @@ body {
     height: 43px;
     width: 43px;
     flex-shrink: 0;
-    /* padding: 6px; */
     align-self: flex-start;
     margin-right: -7px;
     border-radius: 50%;
@@ -148,8 +148,18 @@ body {
     word-wrap: break-word;
     max-width: 90%;
     white-space: pre-line;
-    /* white-space: pre-wrap; */
     font-family: monospace;
+    color: var(--text-color);
+}
+
+.chats-container .message .thinking-container .thinking-output {
+    padding: 3px 16px;
+    word-wrap: break-word;
+    max-width: 90%;
+    white-space: pre-line;
+    font-family: monospace;
+    color: var(--think-color);
+    border-left: 4px solid var(--think-color);
 }
 
 .chats-container .bot-message {
@@ -167,6 +177,63 @@ body {
     border-radius: 13px 13px 3px 13px;
     background: var(--secondary-color);
 }
+
+
+.chats-container .bot-message {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+.chats-container .bot-message .avatar {
+    flex: 0 0 auto;
+}
+
+.chats-container .bot-message .thinking-container,
+.chats-container .bot-message .message-text {
+    flex: 0 0 100%;
+}
+
+.chats-container .bot-message .thinking-container,
+.chats-container .bot-message .message-text {
+    margin-left: calc(43px + 11px);
+}
+
+/* Styles for code blocks */
+pre code {
+    background-color: #f5f5f5;
+    padding: 10px;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Styles for syntax highlighting */
+code {
+    background-color: #007c48;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+}
+
+/* Styles for tables */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+table th,
+table td {
+    padding: 10px;
+    border: 1px solid #ddd;
+    text-align: left;
+}
+
+table th {
+    background-color: var(--primary-color);
+}
+
 
 /* prompt container style */
 .prompt-container {
@@ -193,15 +260,13 @@ body {
     border-radius: 25px;
     background: var(--secondary-color);
     padding: 16px;
-    /* Thêm padding để tạo khoảng cách */
 }
 
 .prompt-input {
     width: 100%;
+    height: 70px;
     min-height: 50px;
-    /* Chiều cao tối thiểu */
-    max-height: 200px;
-    /* Chiều cao tối đa */
+    max-height: 500px;
     padding: 12px 16px;
     border: none;
     border-radius: 12px;
@@ -287,12 +352,25 @@ body {
 }
 
 #send-prompt-btn {
-    background: #1d7efd;
+    background: #a0309a;
+    font-size: 1.8rem;
     color: #fff;
 }
 
 #send-prompt-btn:hover {
-    background: #0264e3;
+    background: #d882d4;
+}
+
+/* btn stop response */
+.prompt-form #stop-response-btn {
+    display: none;
+    background: red;
+    font-size: 1.8rem;
+    color: #fff;
+}
+
+.prompt-form #stop-response-btn:hover {
+    background: rgb(238, 103, 103);
 }
 
 .copy-btn {
@@ -408,4 +486,60 @@ body {
         height: 35px;
         font-size: 0.9rem;
     }
+}
+
+.loading-bars {
+    display: flex;
+    gap: 4px;
+}
+
+.loading-bars span {
+    width: 1000px;
+    height: 15px;
+    background-color: var(--scrollbar-color);
+    display: inline-block;
+    animation: wave 1.2s infinite ease-in-out;
+}
+
+.loading-bars span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+
+.loading-bars span:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.loading-bars span:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+
+@keyframes wave {
+
+    0%,
+    80%,
+    100% {
+        transform: scaleY(1);
+    }
+
+    40% {
+        transform: scaleY(1.8);
+    }
+}
+
+/* CSS cho hiệu ứng */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.thinking-container {
+    animation: fadeIn 0.5s ease-in-out;
+    transition: color 0.3s ease-in-out;
 }

@@ -44,10 +44,24 @@ app.mount("/storage", StaticFiles(directory="storage"), name="storage")
 templates = Jinja2Templates(directory="templates")
 
 
-# Endpoint để phục vụ trang login.html
 @app.get("/chat", response_class=HTMLResponse)
+async def get_chat_page(request: Request):
+    response = templates.TemplateResponse("chat/chat.html", {"request": request})
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
+@app.get("/login", response_class=HTMLResponse)
 async def get_login_page(request: Request):
-    return templates.TemplateResponse("chat/chat.html", {"request": request})
+    response = templates.TemplateResponse(
+        "authentication/login.html", {"request": request}
+    )
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 if __name__ == "__main__":

@@ -23,7 +23,7 @@ git clone https://github.com/Chunn241529/ollama_api.git
 ## 🛠 Yêu cầu hệ thống
 - Hệ điều hành: Windows, macOS, hoặc Linux.
 - Python: Phiên bản 3.10 trở lên.
-- Ollama: Cài đặt [https://ollama.com/download](ollama) và các models
+- Ollama: Cài đặt (ollama)[https://ollama.com/download] và các models
 - Các gói phụ thuộc: Được tự động cài đặt qua setup.bat.
 
 ## 📧 Liên hệ

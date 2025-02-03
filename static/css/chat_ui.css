@@ -240,6 +240,81 @@ body {
     border-left: 4px solid var(--think-color);
 }
 
+/* Tiêu đề (Markdown: # H1, ## H2, ### H3) */
+.chats-container .message .thinking-container .thinking-output h1 {
+    font-size: 1.5em;
+    font-weight: bold;
+    margin: 8px 0;
+}
+
+.chats-container .message .thinking-container .thinking-output h2 {
+    font-size: 1.3em;
+    font-weight: bold;
+    margin: 6px 0;
+}
+
+.chats-container .message .thinking-container .thinking-output h3 {
+    font-size: 1.2em;
+    font-weight: bold;
+    margin: 5px 0;
+}
+
+/* Định dạng đoạn văn bản */
+.chats-container .message .thinking-container .thinking-output p {
+    margin: 4px 0;
+}
+
+/* In đậm và in nghiêng */
+.chats-container .message .thinking-container .thinking-output strong {
+    font-weight: bold;
+}
+
+.chats-container .message .thinking-container .thinking-output em {
+    font-style: italic;
+}
+
+/* Danh sách (unordered - `* item`) */
+.chats-container .message .thinking-container .thinking-output ul {
+    margin: 4px 0;
+    padding-left: 30px;
+}
+
+.chats-container .message .thinking-container .thinking-output ul li {
+    list-style-type: disc;
+    margin-bottom: 2px;
+}
+
+/* Danh sách (ordered - `1. item`) */
+.chats-container .message .thinking-container .thinking-output ol {
+    margin: 4px 0;
+    padding-left: 30px;
+}
+
+.chats-container .message .thinking-container .thinking-output ol li {
+    list-style-type: decimal;
+    margin-bottom: 2px;
+}
+
+/* Định dạng blockquote (`> quote`) */
+.chats-container .message .thinking-container .thinking-output blockquote {
+    border-left: 4px solid var(--text-color);
+    padding-left: 30px;
+    margin: 6px 0;
+    font-style: italic;
+    color: #777;
+}
+
+/* Link (`[text](url)`) */
+.chats-container .message .thinking-container .thinking-output a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.chats-container .message .thinking-container .thinking-output a:hover {
+    text-decoration: underline;
+}
+
+
 .chats-container .bot-message {
     margin: 9px auto
 }

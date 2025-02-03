@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     dropdown.appendChild(option);
 
                     // Chọn giá trị đầu tiên nếu chưa có model_current
-                    if (index === 0) {
+                    if (index === 2) {
                         model_current = model;
                         dropdown.value = model; // Hiển thị giá trị mặc định trên dropdown
                     }

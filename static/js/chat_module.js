@@ -120,14 +120,23 @@ document.addEventListener('DOMContentLoaded', function () {
         .then(data => {
             if (data.models && Array.isArray(data.models)) {
                 const dropdown = document.getElementById('deep-think-options');
-                data.models.forEach(model => {
+
+                data.models.forEach((model, index) => {
                     const option = document.createElement('option');
                     option.value = model;
                     option.textContent = model;
                     dropdown.appendChild(option);
+
+                    // Chọn giá trị đầu tiên nếu chưa có model_current
+                    if (index === 0) {
+                        model_current = model;
+                        dropdown.value = model; // Hiển thị giá trị mặc định trên dropdown
+                    }
                 });
 
-                // Lưu giá trị được chọn vào biến model_current
+                console.log('Default model selected:', model_current);
+
+                // Cập nhật model khi thay đổi dropdown
                 dropdown.addEventListener('change', (event) => {
                     model_current = event.target.value;
                     console.log('Model selected:', model_current);
@@ -139,10 +148,12 @@ document.addEventListener('DOMContentLoaded', function () {
         .catch(error => console.error('Error fetching data:', error));
 });
 
+
+console.log(model_current)
+
 const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = false) => {
     // Lấy phần tử hiển thị nội dung text và thinking
     const textElement = BotMsgDiv.querySelector(".message-text");
-    const thinkContainer = BotMsgDiv.querySelector(".thinking-container")
     const thinkingOutput = BotMsgDiv.querySelector(".thinking-output");
 
     controller = new AbortController();

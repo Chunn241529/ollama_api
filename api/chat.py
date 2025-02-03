@@ -188,7 +188,6 @@ async def stream_response_normal(
 async def stream_response_deepthink(
     session, model, messages, temperature=0.5, max_tokens=15000, top_p=0.9, stop=None
 ):
-    url_ngrok = "https://c492-171-243-49-133.ngrok-free.app"
     url_local = "http://localhost:11434"
     try:
         payload = {

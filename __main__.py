@@ -41,7 +41,6 @@ app.mount(
     StaticFiles(directory="templates/static"),
     name="templates/static",
 )
-app.mount("/storage", StaticFiles(directory="storage"), name="storage")
 
 
 # Sử dụng Jinja2Templates để phục vụ file HTML

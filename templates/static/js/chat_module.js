@@ -115,6 +115,7 @@ function addCopyButtons() {
 let model_current;
 
 document.addEventListener('DOMContentLoaded', function () {
+
     fetch('http://127.0.0.1:2401/chat/get_models_test')
         .then(response => response.json())
         .then(data => {
@@ -149,12 +150,14 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 
-console.log(model_current)
-
 const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = false) => {
     // Lấy phần tử hiển thị nội dung text và thinking
     const textElement = BotMsgDiv.querySelector(".message-text");
     const thinkingOutput = BotMsgDiv.querySelector(".thinking-output");
+    const modelName = BotMsgDiv.querySelector('.modelName');
+
+    modelName.textContent = model_current;
+
 
     controller = new AbortController();
 
@@ -299,7 +302,7 @@ const handleFormSubmit = (e, is_deep_think, is_search) => {
 
     setTimeout(() => {
         const BotMsgHTML = `
-            <img src="/storage/assets/img/1.jpg" alt="" class="avatar"><p class="modelName">ChunGPT</p>
+            <img src="templates/static/assets/img/1.jpg" alt="" class="avatar"><p class="modelName"></p>
             <div class="thinking-container">
                 <p class="thinking-output"></p>
             </div>

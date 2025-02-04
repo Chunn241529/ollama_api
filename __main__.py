@@ -1,6 +1,7 @@
 import os
 import shutil
-from fastapi.responses import HTMLResponse
+from aiohttp import request
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 import uvicorn
@@ -65,6 +66,20 @@ async def get_login_page(request: Request):
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
+
+@app.get("/test", response_class=HTMLResponse)
+async def get_test(request: Request):
+    response = templates.TemplateResponse("test/index.html", {"request": request})
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
+@app.get("/", response_class=RedirectResponse)
+async def redirect_to_chat():
+    return RedirectResponse(url="/chat", status_code=302)
 
 
 if __name__ == "__main__":

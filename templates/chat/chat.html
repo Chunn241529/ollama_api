@@ -1,70 +1,61 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>chunGPT</title>
-    <link
-      rel="icon"
-      type="image/png"
-      sizes="32x32"
-      href="templates\static\assets\favicon\favicon.ico"
-    />
 
-    <link
-      rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0"
-    />
-    <link rel="stylesheet" href="/templates/static/css/chat_ui.css" />
-    <!-- Thư viện marked để parse Markdown
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>chunGPT</title>
+  <link rel="icon" type="image/png" sizes="32x32" href="templates\static\assets\favicon\favicon.ico" />
+
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+  <link rel="stylesheet" href="/templates/static/css/chat_ui.css" />
+  <!-- Thư viện marked để parse Markdown
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> -->
 
-    <!-- Thư viện highlight.js -->
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/monokai-sublime.min.css"
-    />
+  <!-- Thư viện highlight.js -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css" />
+  <link rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/monokai-sublime.min.css" />
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
-    <!-- Thư viện Clipboard.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
-  </head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+  <!-- Thư viện Clipboard.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
+  <!-- chạy code python trên trình duyệt -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+</head>
 
-  <body>
-    <div class="container">
-      <header class="app-header">
-        <h1 class="heading">Xin chào,</h1>
-        <h2 class="sub-heading">Bạn muốn tôi giúp gì?</h2>
-      </header>
-      <ul class="suggestions">
-        <li class="suggestions-item">
-          <p class="text">
-            Xây dựng một blog cá nhân với HTML, CSS, JavaScript
-          </p>
-          <span class="material-symbols-rounded">draw</span>
-        </li>
-        <li class="suggestions-item">
-          <p class="text">Tạo ứng dụng ghi chú đơn giản với ReactJS</p>
-          <span class="material-symbols-rounded">code</span>
-        </li>
-        <li class="suggestions-item">
-          <p class="text">Thiết kế một landing page giới thiệu sản phẩm</p>
-          <span class="material-symbols-rounded">web</span>
-        </li>
-        <li class="suggestions-item">
-          <p class="text">
-            Xây dựng chatbot AI phức tạp với cơ chế training bằng Python
-          </p>
-          <span class="material-symbols-rounded">smart_toy</span>
-        </li>
-      </ul>
+<body>
+  <div class="container">
+    <header class="app-header">
+      <h1 class="heading">Xin chào,</h1>
+      <h2 class="sub-heading">Bạn muốn tôi giúp gì?</h2>
+    </header>
+    <ul class="suggestions">
+      <li class="suggestions-item">
+        <p class="text">
+          Xây dựng một blog cá nhân với HTML, CSS, JavaScript
+        </p>
+        <span class="material-symbols-rounded">draw</span>
+      </li>
+      <li class="suggestions-item">
+        <p class="text">Tạo trang web ứng dụng note bằng HTML, CSS, JavaScript</p>
+        <span class="material-symbols-rounded">note</span>
+      </li>
+      <li class="suggestions-item">
+        <p class="text">Thiết kế một landing page giới thiệu sản phẩm với HTML, CSS, JavaScript</p>
+        <span class="material-symbols-rounded">web</span>
+      </li>
+      <li class="suggestions-item">
+        <p class="text">
+          Xây dựng chatbot AI phức tạp với cơ chế training bằng Python
+        </p>
+        <span class="material-symbols-rounded">smart_toy</span>
+      </li>
+    </ul>
 
-      <div class="chats-container">
-        <!-- <div class="message user-message">
+    <div class="chats-container">
+      <!-- <div class="message user-message">
                 <p class="message-text">Lorem ipsum dolor sit, amet consectetur adipisicing elit.
                 </p>
             </div>
@@ -73,65 +64,58 @@
                 <p class="message-text">Lorem ipsum dolor sit, amet consectetur adipisicing elit.
                 </p>
             </div> -->
-      </div>
 
-      <div class="prompt-container">
-        <div class="prompt-wrapper">
-          <form action="#" class="prompt-form">
-            <!-- Textarea nhập nội dung -->
-            <textarea
-              type="text"
-              placeholder="Hỏi chunGPT"
-              class="prompt-input"
-              required
-            ></textarea>
+    </div>
 
-            <!-- Container cho các nút hành động -->
-            <div class="prompt-actions">
-              <!-- Nhóm nút toggle bên trái -->
-              <div class="prompt-actions-left">
-                <button type="button" class="toggle-btn" id="search-toggle">
-                  🌐 Tìm kiếm
-                </button>
-                <button type="button" class="toggle-btn" id="deep-think-toggle">
-                  💡 Suy luận
-                </button>
-              </div>
-              <!-- Dropdown menu -->
-              <select id="deep-think-options" class="dropdown"></select>
 
-              <!-- Nhóm nút khác bên phải -->
-              <div class="prompt-actions-right">
-                <button
-                  id="add-file-btn"
-                  type="button"
-                  class="material-symbols-rounded"
-                >
-                  attach_file
-                </button>
-                <button
-                  id="stop-response-btn"
-                  type="button"
-                  class="material-symbols-rounded"
-                >
-                  stop_circle
-                </button>
-                <button
-                  id="send-prompt-btn"
-                  type="submit"
-                  class="material-symbols-rounded"
-                >
-                  arrow_upward
-                </button>
-              </div>
+
+    <div class="prompt-container">
+      <div class="prompt-wrapper">
+        <form action="#" class="prompt-form">
+          <!-- Textarea nhập nội dung -->
+          <textarea type="text" placeholder="Hỏi chunGPT" class="prompt-input" required></textarea>
+
+          <!-- Container cho các nút hành động -->
+          <div class="prompt-actions">
+            <!-- Nhóm nút toggle bên trái -->
+            <div class="prompt-actions-left">
+              <button type="button" class="toggle-btn" id="search-toggle">
+                🌐 Tìm kiếm
+              </button>
+              <button type="button" class="toggle-btn" id="deep-think-toggle">
+                💡 Suy luận
+              </button>
             </div>
-          </form>
-        </div>
+            <!-- Dropdown menu -->
+            <select id="deep-think-options" class="dropdown"></select>
+
+            <!-- Nhóm nút khác bên phải -->
+            <div class="prompt-actions-right">
+              <button id="add-file-btn" type="button" class="material-symbols-rounded">
+                attach_file
+              </button>
+              <button id="stop-response-btn" type="button" class="material-symbols-rounded">
+                stop_circle
+              </button>
+              <button id="send-prompt-btn" type="submit" class="material-symbols-rounded">
+                arrow_upward
+              </button>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
-  </body>
-  <!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script> -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-  <script></script>
-  <script type="module" src="/templates/static/js/chat_module.js"></script>
+    <div class="right-container">
+      <iframe class="right" id="output"></iframe>
+      <button type="button" class="material-symbols-rounded" id="move_selection_left">move_selection_left</button>
+      <button type="button" class="material-symbols-rounded" id="move_selection_right">move_selection_right</button>
+      <button type="button" class="material-symbols-rounded" id="close-iframe">close</button>
+    </div>
+  </div>
+</body>
+<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script> -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script></script>
+<script type="module" src="/templates/static/js/chat_module.js"></script>
+
 </html>

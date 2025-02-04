@@ -1,3 +1,11 @@
+const container = document.querySelector(".container")
+const chatsContainer = document.querySelector(".chats-container");
+const promptForm = document.querySelector(".prompt-form");
+const promptInput = promptForm.querySelector(".prompt-input");
+
+let controller;
+let userMessage = "";
+
 document.querySelector('.suggestions').addEventListener('wheel', (event) => {
     event.preventDefault();
     event.currentTarget.scrollBy({
@@ -37,15 +45,6 @@ deepThinkToggle.addEventListener('click', () => {
         console.log('Chế độ deep think bị tắt');
     }
 });
-
-
-const container = document.querySelector(".container")
-const chatsContainer = document.querySelector(".chats-container");
-const promptForm = document.querySelector(".prompt-form");
-const promptInput = promptForm.querySelector(".prompt-input");
-
-let controller;
-let userMessage = "";
 
 const createMsgElement = (content, className) => {
     const div = document.createElement("div");
@@ -151,7 +150,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = false) => {
-    // Lấy phần tử hiển thị nội dung text và thinking
     const textElement = BotMsgDiv.querySelector(".message-text");
     const thinkingOutput = BotMsgDiv.querySelector(".thinking-output");
     const modelName = BotMsgDiv.querySelector('.modelName');
@@ -196,6 +194,15 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
     const decoder = new TextDecoder("utf-8");
     let buffer = "";
 
+    // Reset các biến khi bắt đầu response mới
+    document.querySelector('.right-container').classList.remove('active');
+    document.querySelector('.right').classList.remove('fullscreen');
+    document.getElementById("close-iframe").style.display = "none";
+
+    let lastRenderedHTML = "";
+    let lastRenderedCSS = "";
+    let lastRenderedJS = "";
+
     while (true) {
         const { done, value } = await reader.read();
         if (done) break;
@@ -211,22 +218,49 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
                 const jsonData = JSON.parse(line);
                 let content = (jsonData.message && jsonData.message.content) ? jsonData.message.content : "";
 
-                // Xử lý riêng theo type của message
                 if (jsonData.type === "thinking") {
                     resultThinking += content;
-                    // Cập nhật nội dung thinking
                     thinkingOutput.innerHTML = marked.parse(resultThinking);
                 } else if (jsonData.type === "text") {
                     resultText += content;
-                    // Cập nhật nội dung text
                     textElement.innerHTML = marked.parse(resultText);
-                    // thinkContainer.style.display = `none`;
                 }
             } catch (e) {
                 console.error("JSON parse error:", e);
             }
         }
 
+        const htmlContent = extractHTML(resultText);
+        const cssContent = extractCSS(resultText);
+        const jsContent = extractJavaScript(resultText);
+
+        // Kiểm tra từng loại nội dung, nếu có sự thay đổi thì cập nhật
+        if (htmlContent !== lastRenderedHTML) {
+            lastRenderedHTML = htmlContent;
+            document.getElementById("close-iframe").style.display = "block";
+            document.querySelector('.right-container').classList.add('active');
+            await renderCodeHtml(resultText);
+        }
+
+        if (cssContent !== lastRenderedCSS) {
+            lastRenderedCSS = cssContent;
+            await renderCodeHtml(resultText);
+        }
+
+        if (jsContent !== lastRenderedJS) {
+            lastRenderedJS = jsContent;
+            await renderCodeHtml(resultText);
+
+            // Chỉ thêm fullscreen khi thực sự có JS content
+            const rightElement = document.querySelector('.right');
+            if (jsContent.trim().length > 0) {
+                rightElement.classList.add('fullscreen');
+            } else {
+                rightElement.classList.remove('fullscreen'); // Xóa class nếu không có JS
+            }
+        }
+
+        // Các xử lý bổ sung
         hljs.highlightAll();
         addCopyButtons();
         scrollToBottom();
@@ -243,22 +277,21 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
                 thinkingOutput.innerHTML = marked.parse(resultThinking);
             } else if (jsonData.type === "text") {
                 resultText += content;
+                await renderPythonCode(resultText);
                 textElement.innerHTML = marked.parse(resultText);
             }
         } catch (e) {
             console.error("JSON parse error on final buffer:", e);
         }
     }
-
     hljs.highlightAll();
     addCopyButtons();
     scrollToBottom();
 
     // Khi hoàn thành việc generate response, thay đổi trạng thái nút
-    const btn_stop = document.querySelector("#stop-response-btn");
-    const btn_send = document.querySelector("#send-prompt-btn");
-    btn_stop.style.display = "none";  // Ẩn nút stop
-    btn_send.style.display = "block"; // Hiển thị nút send
+    document.querySelector("#stop-response-btn").style.display = "none";
+    document.querySelector("#send-prompt-btn").style.display = "block";
+
 };
 
 // Ngừng xử lý nếu người dùng nhấn nút Stop
@@ -370,3 +403,102 @@ document.addEventListener("click", ({ target }) => {
     const shouldHide = target.classList.contains(".prompt-input") || (wrapper.classList.contains("hide-controls") && (target.id === "add-file-btn") || (target.id === "stop-response-btn"));
     wrapper.classList.toggle("hide-controls", shouldHide);
 })
+
+
+// 🔹 Hàm trích xuất code block
+function extractHTML(response) {
+    let match = response.match(/```html\n([\s\S]*?)```/);
+    return match ? match[1].trim() : "";
+}
+
+function extractCSS(response) {
+    let match = response.match(/```css\n([\s\S]*?)```/);
+    return match ? match[1].trim() : "";
+}
+
+function extractJavaScript(response) {
+    let match = response.match(/```javascript\n([\s\S]*?)```/);
+    return match ? match[1].trim() : "";
+}
+
+function extractPython(response) {
+    let match = response.match(/```python\n([\s\S]*?)```/);
+    return match ? match[1].trim() : "";
+}
+
+
+// 🔹 Render HTML vào iframe
+async function renderCodeHtml(extract) {
+
+    const htmlContent = extractHTML(extract);
+    const cssContent = extractCSS(extract);
+    const jsContent = extractJavaScript(extract);
+    if (!htmlContent) return;
+
+    // Tạo Blob URL từ HTML và CSS
+    const fullHTML = `
+            <html>
+                <head>
+                    <style>
+                        ${cssContent}
+                    </style>
+                </head>
+                <body>
+                    ${htmlContent}
+                    <script type="module">
+                        ${jsContent}
+                    <\/script>
+                </body>
+            </html>
+        `;
+    const blob = new Blob([fullHTML], { type: "text/html" });
+    const blobURL = URL.createObjectURL(blob);
+
+    // Gán vào iframe
+    document.getElementById("output").src = blobURL;
+}
+
+
+
+// Trình run code python trên trình duyệt
+// async function loadPyodideInstance() {
+//     window.pyodide = await loadPyodide();
+//     console.log("✅ Pyodide đã tải xong!");
+// }
+// loadPyodideInstance();
+
+// function isPyodideReady() {
+//     return window.pyodide && typeof window.pyodide.runPythonAsync === "function";
+// }
+
+// async function renderPythonCode(extract) {
+//     const pythonCode = extractPython(extract);
+//     if (!pythonCode) return alert("Không tìm thấy code Python!");
+
+//     // Chờ Pyodide tải hoàn tất
+//     if (!isPyodideReady()) {
+//         alert("Pyodide chưa sẵn sàng! Vui lòng đợi...");
+//         return;
+//     }
+
+//     try {
+//         const result = await window.pyodide.runPythonAsync(pythonCode); // ✅ Đã có `await`
+//         alert(result);
+
+//     } catch (error) {
+//         alert("Lỗi khi chạy code: " + error);
+//     }
+// }
+
+document.getElementById("close-iframe").addEventListener("click", function () {
+    document.getElementById("close-iframe").style.display = "none";
+    document.querySelector('.right-container').classList.remove('active');
+});
+
+document.getElementById("move_selection_right").addEventListener("click", function () {
+    document.querySelector('.right').classList.remove('fullscreen');
+});
+
+document.getElementById("move_selection_left").addEventListener("click", function () {
+    document.querySelector('.right').classList.add('fullscreen');
+});

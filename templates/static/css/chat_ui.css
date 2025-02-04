@@ -237,7 +237,7 @@ body {
     white-space: pre-line;
     font-family: "Source Code Pro", serif;
     color: var(--think-color);
-    border-left: 4px solid var(--think-color);
+    border-left: 2px solid var(--think-color);
 }
 
 /* Tiêu đề (Markdown: # H1, ## H2, ### H3) */
@@ -420,11 +420,8 @@ table th {
     font-size: 1rem;
     outline: none;
     resize: none;
-    /* Tắt khả năng resize */
     overflow-y: auto;
-    /* Hiển thị thanh cuộn khi cần */
     line-height: 1.5;
-    /* Điều chỉnh khoảng cách giữa các dòng */
 }
 
 .prompt-input::placeholder {
@@ -454,24 +451,23 @@ table th {
     font-size: 1rem;
     cursor: pointer;
     transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.1s ease;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 6px 8px rgba(0, 0, 0, 0.2);
 }
 
 .prompt-actions-left .toggle-btn:hover {
     background: var(--secondary-hover-color);
-    box-shadow: 0 6px 8px rgba(132, 130, 130, 0.3);
+    box-shadow: 0 8px 10px rgba(132, 130, 130, 0.3);
 }
 
 .prompt-actions-left .toggle-btn:active {
     transform: translateY(2px);
-    box-shadow: 0 2px 4px rgba(60, 60, 60, 0.3);
+    box-shadow: 0 6px 8px rgba(60, 60, 60, 0.3);
 }
 
 .prompt-actions-left .toggle-btn.active {
     background: linear-gradient(to right, #1d7efd, #8f6fff);
     color: #fff;
-    /* Có thể giữ độ đổ bóng tương tự để không mất hiệu ứng 3D */
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 8px 10px rgba(0, 0, 0, 0.2);
 }
 
 /* Nhóm nút bên phải: đẩy sang bên phải */
@@ -519,14 +515,11 @@ table th {
     cursor: pointer;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
     margin-left: 5px;
-    /* Reduce space between the button and the dropdown */
     appearance: none;
-    /* Remove default dropdown arrow */
     background-image: url('data:image/svg+xml;charset=US-ASCII,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="white" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/></svg>');
     background-repeat: no-repeat;
     background-position: right 10px center;
     padding-right: 30px;
-    /* Add space for the custom arrow */
 }
 
 .dropdown:hover {

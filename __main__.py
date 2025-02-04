@@ -36,7 +36,11 @@ app.include_router(chat_router, prefix="/chat")
 
 
 # Mount thư mục chứa file HTML (nếu bạn muốn phục vụ các file tĩnh như CSS, JS)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount(
+    "/templates/static",
+    StaticFiles(directory="templates/static"),
+    name="templates/static",
+)
 app.mount("/storage", StaticFiles(directory="storage"), name="storage")
 
 

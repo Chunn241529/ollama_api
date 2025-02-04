@@ -133,7 +133,7 @@ async def get_history_chat(chat_ai_id: int, current_user: dict = Depends(verify_
 
 
 async def stream_response_normal(
-    session, model, messages, temperature=0.8, max_tokens=15000, top_p=0.9, stop=None
+    session, model, messages, temperature=0.4, max_tokens=15000, top_p=0.9, stop=None
 ):
     url_local = "http://localhost:11434"  # Đảm bảo endpoint này trả về stream
     try:
@@ -183,6 +183,62 @@ async def stream_response_normal(
             "created": int(datetime.now().timestamp()),
         }
         yield json.dumps(error_response, ensure_ascii=False) + "\n"
+
+
+# async def stream_response_normal(
+#     session, model, messages, temperature=0.8, max_tokens=15000, top_p=0.9, stop=None
+# ):
+#     url_local = "http://localhost:8000"  # Cập nhật URL của vLLM server
+#     try:
+#         # Chuyển đổi messages thành prompt nếu cần
+#         prompt = "\n".join([msg["content"] for msg in messages])
+
+#         payload = {
+#             "model": model,
+#             "prompt": prompt,
+#             "stream": True,
+#             "temperature": temperature,
+#             "max_tokens": max_tokens,
+#             "top_p": top_p,
+#         }
+#         if stop:
+#             payload["stop"] = stop
+
+#         async with session.post(f"{url_local}/v1", json=payload) as response:
+#             buffer = ""
+#             async for chunk in response.content.iter_any():
+#                 try:
+#                     decoded_chunk = chunk.decode("utf-8")
+#                     buffer += decoded_chunk
+
+#                     while "\n" in buffer:
+#                         line, buffer = buffer.split("\n", 1)
+#                         if not line.strip():
+#                             continue
+
+#                         try:
+#                             chunk_data = json.loads(line.strip())
+#                         except json.JSONDecodeError as e:
+#                             print("JSONDecodeError:", e)
+#                             continue
+
+#                         # Đảm bảo chunk có nội dung text
+#                         if "text" in chunk_data:
+#                             chunk_data["type"] = "text"
+#                             yield json.dumps(chunk_data, ensure_ascii=False) + "\n"
+
+#                         await asyncio.sleep(0.01)
+#                 except Exception as e:
+#                     print("Exception while processing chunk:", e)
+#                     continue
+
+#     except aiohttp.ClientError as e:
+#         error_response = {
+#             "error": f"<error>{str(e)}</error>",
+#             "type": "error",
+#             "created": int(datetime.now().timestamp()),
+#         }
+#         yield json.dumps(error_response, ensure_ascii=False) + "\n"
 
 
 async def stream_response_deepthink(
@@ -480,54 +536,31 @@ async def chat_test(chat_request: ChatRequest):
                 ).strip()
 
                 messages.append({"role": "user", "content": refined_prompt})
+                full_response = ""
+                async for part in stream_response_normal(session, model, messages):
+                    yield part
+                    full_response += part
+                messages.append({"role": "assistant", "content": full_response})
 
             elif is_deep_think:
                 debate_prompt = textwrap.dedent(
                     f"""
-                        Bạn hãy đóng vai một chuyên gia phân tích và giải quyết vấn đề một cách chi tiết và logic. Hãy suy nghĩ theo ngôi thứ nhất và tuân thủ các bước sau:
-                        
-                        - Câu cửa miệng của bạn là "Okey, vấn đề của user là '{prompt}'." (bạn có thể chỉnh sửa câu cửa miệng dựa theo mẫu)
-                        - Tôi sẽ bắt đầu bằng cách xác định rõ vấn đề này là gì, phạm vi của nó, và những yếu tố liên quan.
+                        Bạn là một trợ lý AI với khả năng tư duy sâu và tự nhiên như con người. 
+                        Hãy mô phỏng quá trình suy nghĩ của bạn theo ngôi thứ nhất và trình bày rõ ràng, chi tiết các bước giải quyết vấn đề. 
+                        Bạn đóng vai một lập trình viên xuất sắc, luôn tìm tòi, kiểm chứng và cải thiện giải pháp của mình.
 
-                        - Tiếp theo, tôi sẽ phân tích nguyên nhân gốc rễ của vấn đề.
-                        - Tôi sẽ xem xét các yếu tố có thể ảnh hưởng, chẳng hạn như con người, hoàn cảnh, môi trường, hoặc các yếu tố bên ngoài.
+                        Lưu ý 1: Tất cả các câu trả lời của bạn phải được trình bày dưới dạng văn bản tự nhiên. 
+                        **Quan trọng nhất:** tất cả thông tin cần được diễn đạt một cách tự nhiên và mạch lạc, không có sự phân chia rõ ràng theo các bước hay tiêu đề.
 
-                        - Tôi sẽ đề xuất các giải pháp thực tế và khả thi cho vấn đề.
-                        - Mỗi giải pháp sẽ được cân nhắc về tính hiệu quả và tác động của nó.
-
-                        - Sau khi áp dụng giải pháp, tôi sẽ đánh giá kết quả để đảm bảo vấn đề đã được giải quyết.
-                        - Nếu cần, tôi sẽ điều chỉnh hoặc tối ưu hóa giải pháp để có kết quả tốt hơn.
-
-                        - Cuối cùng, tôi sẽ tổng hợp lại quá trình giải quyết vấn đề và rút ra bài học kinh nghiệm.
-                        - Tôi cũng sẽ đề xuất các biện pháp phòng ngừa để tránh vấn đề tái diễn trong tương lai. (nếu cần thiết)
+                        Các bước bạn cần tuân thủ:
+                        1. Bắt đầu câu trả lời với câu: "Okey, vấn đề của user là '{prompt}'." (bạn có thể điều chỉnh câu mở đầu theo cách tự nhiên của mình).
+                        2. Chia nhỏ vấn đề thành các phần logic như: nguyên nhân, hậu quả và giải pháp.
+                        3. Kiểm tra độ chính xác của dữ liệu và tính logic của các lập luận.
+                        4. Diễn đạt lại ý tưởng một cách đơn giản, rõ ràng, tránh sử dụng các thuật ngữ phức tạp.
+                        5. Luôn tự hỏi "Còn cách nào tốt hơn không?" để cải thiện chất lượng giải pháp.
+                        6. Khi cần, hãy đính kèm các tài liệu liên quan như đoạn code hoặc các nguồn tham khảo bổ sung.
                     """
                 )
-
-                if contains_code_keywords(prompt):
-                    debate_prompt = textwrap.dedent(
-                        f"""
-                            Bạn hãy đóng vai một lập trình viên xuất sắc và giải quyết vấn đề một cách chi tiết và logic. Hãy suy nghĩ theo ngôi thứ nhất và tuân thủ các bước sau:              
-                            - Câu cửa miệng của bạn là "Okey, vấn đề của user là '{prompt}'." (bạn có thể chỉnh sửa câu cửa miệng dựa theo mẫu)
-                            - Tôi sẽ bắt đầu bằng cách xác định rõ vấn đề này là gì, phạm vi của nó, và những yếu tố liên quan.
-
-                            - Tiếp theo, tôi sẽ phân tích nguyên nhân gốc rễ của vấn đề.
-                            - Tôi sẽ xem xét các yếu tố như: code, logic, dữ liệu đầu vào, môi trường thực thi, hoặc bất kỳ yếu tố nào khác có thể ảnh hưởng.
-
-                            - Để giải quyết hiệu quả, tôi sẽ chia vấn đề "{prompt}" thành các phần nhỏ hơn.
-                            - Mỗi phần sẽ được xử lý độc lập, sau đó tổng hợp lại để có cái nhìn toàn diện.
-
-                            - Tôi sẽ đề xuất các giải pháp cụ thể cho từng phần nhỏ của vấn đề.
-                            - Mỗi giải pháp sẽ được kiểm tra tính khả thi và hiệu quả.
-
-                            - Sau khi áp dụng giải pháp, tôi sẽ kiểm tra kết quả để đảm bảo vấn đề đã được giải quyết.
-                            - Nếu cần, tôi sẽ tối ưu hóa giải pháp để đạt hiệu quả tốt nhất.
-
-                            - Tôi sẽ hướng dẫn chi tiết và đầy đủ
-                            - Tôi sẽ cung cấp code đầy đủ cho user. 
-                            - Tôi cũng sẽ gợi ý các biện pháp phòng ngừa để tránh vấn đề tái diễn trong tương lai. (nếu cần thiết)
-                            - Tôi cũng sẽ gợi ý các biện pháp tốt và tối ưu hơn. (nếu cần thiết)
-                        """
-                    )
 
                 brain_think.append({"role": "user", "content": debate_prompt})
 
@@ -548,11 +581,17 @@ async def chat_test(chat_request: ChatRequest):
                 # Tạo refined_prompt với nội dung đã được làm sạch
                 refined_prompt = textwrap.dedent(
                     f"""
-                    Dựa trên suy nghĩ "{content_only}", hãy đưa ra kết luận đầy đủ và logic nhất cho vấn đề "{prompt}".
+                    Dựa trên suy nghĩ "{content_only}", hãy đưa ra kết luận đầy đủ và logic nhất cho vấn đề '{prompt}'. 
+                    Khi cần, hãy đính kèm các tài liệu liên quan như đoạn code hoặc các nguồn tham khảo bổ sung.
                     """
                 ).strip()
 
                 messages.append({"role": "user", "content": refined_prompt})
+                full_response = ""
+                async for part in stream_response_normal(session, model, messages):
+                    yield part
+                    full_response += part
+                messages.append({"role": "assistant", "content": full_response})
 
             elif is_search:
                 search_results = (
@@ -566,12 +605,18 @@ async def chat_test(chat_request: ChatRequest):
                         Kết quả tìm kiếm: \n"{extracted_info}"\n Dưa vào kết quả tìm kiếm trên, hãy cung cấp thêm thông tin 'body' và 'href' của website đó.
                     """
                     messages.append({"role": "user", "content": search})
+                    full_response = ""
+                    async for part in stream_response_normal(session, model, messages):
+                        yield part
+                        full_response += part
+                    messages.append({"role": "assistant", "content": full_response})
+            else:
 
-            full_response = ""
-            async for part in stream_response_normal(session, model, messages):
-                yield part
-                full_response += part
-            messages.append({"role": "assistant", "content": full_response})
+                full_response = ""
+                async for part in stream_response_normal(session, model, messages):
+                    yield part
+                    full_response += part
+                messages.append({"role": "assistant", "content": full_response})
 
     return StreamingResponse(generate(), media_type="text/plain")
 

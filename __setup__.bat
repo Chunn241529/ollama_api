@@ -48,6 +48,11 @@ echo Khởi tạo file requirements.txt...
     echo aiohttp
     echo passlib
     echo argon2_cffi
+    echo torch
+    echo transformers
+    echo datasets
+    echo accelerate
+    echo vllm
 ) > requirements.txt
 
 

@@ -9,33 +9,43 @@
 
   <link rel="stylesheet"
     href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
-  <link rel="stylesheet" href="/templates/static/css/chat_ui.css" />
-  <!-- Thư viện marked để parse Markdown
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> -->
+
+
+  <!-- css component -->
+  <link rel="stylesheet" href="/templates/static/css/components/head.css" />
+  <link rel="stylesheet" href="/templates/static/css/components/suggestions.css" />
+  <link rel="stylesheet" href="/templates/static/css/components/chat_container.css" />
+  <link rel="stylesheet" href="/templates/static/css/components/prompt_container.css" />
+  <link rel="stylesheet" href="/templates/static/css/components/iframe.css" />
+  <link rel="stylesheet" href="/templates/static/css/components/search.css" />
+  <link rel="stylesheet" href="/templates/static/css/components/responsive_chat.css" />
+
+  <!-- css main -->
+  <link rel="stylesheet" href="/templates/static/css/chat.css" />
 
   <!-- Thư viện highlight.js -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css" />
   <link rel="stylesheet"
     href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/monokai-sublime.min.css" />
-
   <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+
   <!-- Thư viện Clipboard.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
+
   <!-- chạy code python trên trình duyệt -->
-  <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+  <!-- <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script> -->
+
 </head>
 
 <body>
   <div class="container">
     <header class="app-header">
       <h1 class="heading">Xin chào,</h1>
-      <h2 class="sub-heading">Bạn muốn tôi giúp gì?</h2>
+      <h2 class="sub-heading">Tôi có thể giúp gì cho bạn?</h2>
     </header>
     <ul class="suggestions">
       <li class="suggestions-item">
-        <p class="text">
-          Xây dựng một blog cá nhân với HTML, CSS, JavaScript
-        </p>
+        <p class="text">Xây dựng một trang login đầy đủ tính năng và animation với HTML, CSS, JavaScript</p>
         <span class="material-symbols-rounded">draw</span>
       </li>
       <li class="suggestions-item">
@@ -47,9 +57,7 @@
         <span class="material-symbols-rounded">web</span>
       </li>
       <li class="suggestions-item">
-        <p class="text">
-          Xây dựng chatbot AI phức tạp với cơ chế training bằng Python
-        </p>
+        <p class="text">Xây dựng đầy đủ fine tuning AI với model có sẵn bằng code python...</p>
         <span class="material-symbols-rounded">smart_toy</span>
       </li>
     </ul>
@@ -87,7 +95,7 @@
               </button>
             </div>
             <!-- Dropdown menu -->
-            <select id="deep-think-options" class="dropdown"></select>
+            <!-- <select id="deep-think-options" class="dropdown"></select> -->
 
             <!-- Nhóm nút khác bên phải -->
             <div class="prompt-actions-right">
@@ -113,9 +121,10 @@
     </div>
   </div>
 </body>
-<!-- <script src="https://cdnjs.cloudflare.com/ajax/libs/markdown-it/13.0.1/markdown-it.min.js"></script> -->
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script></script>
 <script type="module" src="/templates/static/js/chat_module.js"></script>
+
+
 
 </html>

@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Source Code Pro", serif;
+}
+
+:root {
+    --text-color: #edf3ff;
+    --think-color: #aaaaaad8;
+    --subheading-color: #97a7ca;
+    --placeholder-color: #c3cdde;
+    --primary-color: #101623;
+    --secondary-color: #283045;
+    --secondary-hover-color: #333e58;
+    --scrollbar-color: #626a7f;
+}
+
+/* search */
+.search-output {
+    display: none;
+    margin: 3px 69px;
+    font-size: 16px;
+    font-weight: bold;
+    align-content: center;
+    justify-content: center;
+    font-family: "Source Code Pro", serif;
+    padding: 8px 16px;
+    min-width: 120px;
+    height: 35px;
+    border: none;
+    border-radius: 15px;
+    background: var(--text-color);
+    color: var(--primary-color);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+}
+
+/* Tạo hiệu ứng nhảy */
+.search-output span {
+    display: inline-block;
+    font-size: 16px;
+    font-weight: bold;
+    align-content: center;
+    justify-content: center;
+    font-family: "Source Code Pro", serif;
+    animation: bounce 0.5s infinite alternate ease-in-out;
+}
+
+/* Định nghĩa animation */
+@keyframes bounce {
+    from {
+        transform: translateY(0);
+    }
+
+    to {
+        transform: translateY(-2px);
+    }
+}
+
+/* Tạo hiệu ứng delay cho từng chữ */
+.search-output span:nth-child(1) {
+    animation-delay: 0s;
+}
+
+.search-output span:nth-child(2) {
+    animation-delay: 0.5s;
+}
+
+.search-output span:nth-child(3) {
+    animation-delay: 1s;
+}
+
+.search-output span:nth-child(4) {
+    animation-delay: 1.5s;
+}
+
+.search-output span:nth-child(5) {
+    animation-delay: 2s;
+}
+
+.search-output span:nth-child(6) {
+    animation-delay: 2.5s;
+}
+
+.search-output span:nth-child(7) {
+    animation-delay: 3s;
+}
+
+.search-output span:nth-child(8) {
+    animation-delay: 3.5s;
+}
+
+.search-output span:nth-child(9) {
+    animation-delay: 4s;
+}
+
+.search-output span:nth-child(10) {
+    animation-delay: 4.5s;
+}
+
+.search-output span:nth-child(11) {
+    animation-delay: 5s;
+}
+
+.search-output span:nth-child(12) {
+    animation-delay: 5.5s;
+}

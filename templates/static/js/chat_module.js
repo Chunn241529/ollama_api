@@ -6,6 +6,23 @@ const promptInput = promptForm.querySelector(".prompt-input");
 let controller;
 let userMessage = "";
 
+let autoScroll = true; // Ban đầu cho phép tự động scroll
+
+container.addEventListener("scroll", () => {
+    // Kiểm tra nếu container chưa cuộn hết đến cuối
+    // (scrollTop + clientHeight < scrollHeight nghĩa là người dùng cuộn lên)
+    if (container.scrollTop + container.clientHeight < container.scrollHeight) {
+        autoScroll = false;
+    } else {
+        autoScroll = true;
+    }
+});
+
+const scrollToBottom = () => {
+    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+};
+
+
 document.querySelector('.suggestions').addEventListener('wheel', (event) => {
     event.preventDefault();
     event.currentTarget.scrollBy({
@@ -52,8 +69,6 @@ const createMsgElement = (content, className) => {
     div.innerHTML = content;
     return div;
 }
-
-const scrollToBottom = () => container.scrollTo({ top: container.scrollHeight, behavior: "smooth" })
 
 function addCopyButtons() {
     const blocks = document.querySelectorAll('pre code');
@@ -128,7 +143,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     dropdown.appendChild(option);
 
                     // Chọn giá trị đầu tiên nếu chưa có model_current
-                    if (index === 2) {
+                    if (index === 0) {
                         model_current = model;
                         dropdown.value = model; // Hiển thị giá trị mặc định trên dropdown
                     }
@@ -153,8 +168,10 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
     const textElement = BotMsgDiv.querySelector(".message-text");
     const thinkingOutput = BotMsgDiv.querySelector(".thinking-output");
     const modelName = BotMsgDiv.querySelector('.modelName');
+    const searchOutput = document.querySelector(".search-output");
 
-    modelName.textContent = model_current;
+    // modelName.textContent = model_current;
+    modelName.textContent = "chun-gpt";
 
 
     controller = new AbortController();
@@ -164,6 +181,9 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
         loadingBars.forEach(lb => lb.style.display = 'none');
     } else {
         thinkingOutput.style.borderLeft = 'none';
+    }
+    if (is_search || is_search && is_deep_think) {
+        searchOutput.style.display = "block";
     }
 
     // Khởi tạo biến riêng cho mỗi loại kết quả
@@ -177,7 +197,7 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
         },
         body: JSON.stringify({
             prompt: userMessage,
-            model: model_current,
+            // model: model_current,
             chat_ai_id: 0,
             is_deep_think: is_deep_think,
             is_search: is_search,
@@ -193,15 +213,19 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
     const reader = response.body.getReader();
     const decoder = new TextDecoder("utf-8");
     let buffer = "";
+    let num_search = "";
+    let search_results = "";
 
     // Reset các biến khi bắt đầu response mới
     document.querySelector('.right-container').classList.remove('active');
     document.querySelector('.right').classList.remove('fullscreen');
     document.getElementById("close-iframe").style.display = "none";
 
+
     let lastRenderedHTML = "";
     let lastRenderedCSS = "";
     let lastRenderedJS = "";
+    let lastRenderedSearch = "";
 
     while (true) {
         const { done, value } = await reader.read();
@@ -217,6 +241,17 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
             try {
                 const jsonData = JSON.parse(line);
                 let content = (jsonData.message && jsonData.message.content) ? jsonData.message.content : "";
+
+                if (jsonData.num_results) {
+                    num_search = jsonData.num_results;
+                    search_results = jsonData.search_results;
+                }
+
+                // Chỉ cập nhật nếu có giá trị `num_search`
+                if (num_search) {
+                    searchOutput.textContent = `Tìm được ${num_search} kết quả`;
+                }
+
 
                 if (jsonData.type === "thinking") {
                     resultThinking += content;
@@ -260,10 +295,19 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
             }
         }
 
+        if (search_results !== lastRenderedSearch) {
+            lastRenderedSearch = search_results;
+            await renderSearch(search_results);
+        }
+
         // Các xử lý bổ sung
         hljs.highlightAll();
         addCopyButtons();
-        scrollToBottom();
+
+        if (autoScroll) {
+            scrollToBottom();
+        }
+
     }
 
     // Nếu có dữ liệu còn lại trong buffer sau khi đọc xong
@@ -271,13 +315,21 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
         try {
             const jsonData = JSON.parse(buffer);
             let content = (jsonData.message && jsonData.message.content) ? jsonData.message.content : "";
+            // Chỉ cập nhật `num_search` nếu nó tồn tại
+            if (jsonData.num_results) {
+                num_search = jsonData.num_results;
+            }
+
+            // Chỉ cập nhật nếu có giá trị `num_search`
+            if (num_search) {
+                searchOutput.textContent = `Tìm được ${num_search} kết quả`;
+            }
 
             if (jsonData.type === "thinking") {
                 resultThinking += content;
                 thinkingOutput.innerHTML = marked.parse(resultThinking);
             } else if (jsonData.type === "text") {
                 resultText += content;
-                await renderPythonCode(resultText);
                 textElement.innerHTML = marked.parse(resultText);
             }
         } catch (e) {
@@ -286,7 +338,10 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
     }
     hljs.highlightAll();
     addCopyButtons();
-    scrollToBottom();
+
+    if (autoScroll) {
+        scrollToBottom();
+    }
 
     // Khi hoàn thành việc generate response, thay đổi trạng thái nút
     document.querySelector("#stop-response-btn").style.display = "none";
@@ -312,7 +367,7 @@ const hideSuggestion = (e, suggestion = `none`, header = `none`) => {
     app_header.style.display = header;
 }
 
-const handleFormSubmit = (e, is_deep_think, is_search) => {
+const handleFormSubmit = (e) => {
     e.preventDefault();
     const btn_stop = document.querySelector("#stop-response-btn");
     const btn_send = document.querySelector("#send-prompt-btn");
@@ -336,9 +391,11 @@ const handleFormSubmit = (e, is_deep_think, is_search) => {
     setTimeout(() => {
         const BotMsgHTML = `
             <img src="templates/static/assets/img/1.jpg" alt="" class="avatar"><p class="modelName"></p>
+            <button type="button" class="search-output" id="search">Searching...</button>
             <div class="thinking-container">
                 <p class="thinking-output"></p>
             </div>
+               
             <p class="message-text">
                 <span class="loading-bars">
                     <span></span><span></span><span></span>
@@ -354,6 +411,22 @@ const handleFormSubmit = (e, is_deep_think, is_search) => {
 
         const BotMsgDiv = createMsgElement(BotMsgHTML, "bot-message");
         chatsContainer.appendChild(BotMsgDiv);
+
+        // Sau khi BotMsgDiv được thêm vào DOM, tìm phần tử .search-output và chuyển đổi nội dung của nó thành các <span>
+        const searchOutput = BotMsgDiv.querySelector(".search-output");
+        if (searchOutput) {
+            const text = searchOutput.textContent;
+            searchOutput.innerHTML = text.split("").map(char => `<span>${char}</span>`).join("");
+        }
+
+        const searchElement = document.getElementById("search");
+        if (!searchElement) {
+            console.error("Không tìm thấy phần tử với id 'search'");
+        }
+        searchElement.addEventListener("click", async function () {
+            document.getElementById("close-iframe").style.display = "block";
+            document.querySelector('.right-container').classList.add('active');
+        });
 
         if (toggle_search && toggle_deepthink) {
             generateResponse(BotMsgDiv, true, true);
@@ -394,7 +467,7 @@ promptInput.addEventListener("keydown", (e) => {
 document.querySelectorAll(".suggestions-item").forEach(item => {
     item.addEventListener("click", () => {
         promptInput.value = item.querySelector(".text").textContent;
-        promptForm.dispatchEvent(new Event("submit"));
+        // promptForm.dispatchEvent(new Event("submit"));
     })
 })
 
@@ -458,6 +531,72 @@ async function renderCodeHtml(extract) {
     document.getElementById("output").src = blobURL;
 }
 
+async function renderSearch(search_results) {
+
+    if (!search_results.length) return;
+
+    const cssContent = `
+        .search-box {
+            padding: 10px;
+            box-shadow: 0 4px 8px rgba(3, 3, 3, 0.2);
+            border-radius: 10px;
+            margin: 20px;
+            background: #fff;
+            word-wrap: break-word;
+            font-family: "Source Code Pro", serif;
+        }
+
+        .search-box:hover {
+            background: #f5f5f5;
+        }
+
+        .search-title {
+            font-size: 18px;
+            margin: 10px 0;
+        }
+        .search-description {
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        a {
+            text-decoration: none;
+            color: inherit;
+        }
+    `;
+
+    const htmlContent = search_results.map(result => `
+        <a href="${result.href}" target="_blank">
+            <div class="search-box">
+                <h2 class="search-title">${result.title}</h2>
+                <p class="search-description">${result.body}</p>
+            </div>
+        </a>
+        
+    `).join('');
+
+    const jsContent = "";
+
+    const fullHTML = `
+        <html>
+            <head>
+                <style>
+                    ${cssContent}
+                </style>
+            </head>
+            <body>
+                ${htmlContent}
+                <script type="module">
+                    ${jsContent}
+                <\/script>
+            </body>
+        </html>
+    `;
+
+    const blob = new Blob([fullHTML], { type: "text/html" });
+    const blobURL = URL.createObjectURL(blob);
+
+    document.getElementById("output").src = blobURL;
+}
 
 
 // Trình run code python trên trình duyệt

@@ -52,7 +52,7 @@ echo Khởi tạo file requirements.txt...
     echo transformers
     echo datasets
     echo accelerate
-    echo ollama
+    echo pywin32
 ) > requirements.txt
 
 

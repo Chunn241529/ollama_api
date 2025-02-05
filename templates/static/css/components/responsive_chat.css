@@ -1,0 +1,180 @@
+@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: "Source Code Pro", serif;
+}
+
+:root {
+    --text-color: #edf3ff;
+    --think-color: #aaaaaad8;
+    --subheading-color: #97a7ca;
+    --placeholder-color: #c3cdde;
+    --primary-color: #101623;
+    --secondary-color: #283045;
+    --secondary-hover-color: #333e58;
+    --scrollbar-color: #626a7f;
+}
+
+/* Responsive styles */
+@media (max-width: 1200px) {
+    .app-header .heading {
+        font-size: 2.5rem;
+    }
+
+    .app-header .sub-heading {
+        font-size: 2.2rem;
+    }
+
+    .suggestions .suggestions-item {
+        width: 200px;
+    }
+}
+
+@media (max-width: 992px) {
+    .app-header .heading {
+        font-size: 2rem;
+    }
+
+    .app-header .sub-heading {
+        font-size: 1.8rem;
+    }
+
+    .suggestions .suggestions-item {
+        width: 180px;
+    }
+}
+
+@media (max-width: 768px) {
+    .app-header .heading {
+        font-size: 1.8rem;
+    }
+
+    .app-header .sub-heading {
+        font-size: 1.6rem;
+    }
+
+    .suggestions .suggestions-item {
+        width: 160px;
+    }
+
+    .prompt-form {
+        padding: 12px;
+    }
+
+    .prompt-input {
+        font-size: 0.9rem;
+    }
+
+    .prompt-actions-left .toggle-btn {
+        min-width: 80px;
+        font-size: 0.9rem;
+    }
+
+    .prompt-actions-right button {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .app-header .heading {
+        font-size: 1.5rem;
+    }
+
+    .app-header .sub-heading {
+        font-size: 1.3rem;
+    }
+
+    .suggestions .suggestions-item {
+        width: 140px;
+    }
+
+    .prompt-form {
+        padding: 10px;
+    }
+
+    .prompt-input {
+        font-size: 0.8rem;
+    }
+
+    .prompt-actions-left .toggle-btn {
+        min-width: 70px;
+        font-size: 0.8rem;
+    }
+
+    .prompt-actions-right button {
+        width: 35px;
+        height: 35px;
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 430px) {
+    .app-header .heading {
+        font-size: 1.3rem;
+    }
+
+    .app-header .sub-heading {
+        font-size: 1.1rem;
+    }
+
+    .suggestions .suggestions-item {
+        width: 120px;
+    }
+
+    .prompt-input {
+        font-size: 0.75rem;
+    }
+
+    .prompt-actions-left .toggle-btn {
+        min-width: 60px;
+        font-size: 0.75rem;
+    }
+
+    .prompt-actions-right button {
+        width: 30px;
+        height: 30px;
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 390px) {
+    .app-header .heading {
+        font-size: 1.2rem;
+    }
+
+    .app-header .sub-heading {
+        font-size: 1rem;
+    }
+
+    .suggestions .suggestions-item {
+        width: 100px;
+    }
+
+    .prompt-form {
+        padding: 8px;
+    }
+
+    .prompt-input {
+        font-size: 0.7rem;
+    }
+
+    .prompt-actions-left .toggle-btn {
+        min-width: 50px;
+        font-size: 0.7rem;
+    }
+
+    .prompt-actions-right button {
+        width: 25px;
+        height: 25px;
+        font-size: 0.7rem;
+    }
+
+    .dropdown {
+        display: none;
+    }
+}

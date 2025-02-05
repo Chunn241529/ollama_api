@@ -4,7 +4,6 @@ import subprocess
 import textwrap
 import aiohttp
 from fastapi import APIRouter, HTTPException, Depends
-import ollama
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
 import asyncio
@@ -45,7 +44,7 @@ default_custom_ai = """
 
 class ChatRequest(BaseModel):
     prompt: str
-    model: str = "chunn1.0:latest"
+    model: str = "chunn2.0:7b"
     chat_ai_id: int = None
     is_deep_think: bool = False
     is_search: bool = False
@@ -134,23 +133,33 @@ async def get_history_chat(chat_ai_id: int, current_user: dict = Depends(verify_
 
 
 async def stream_response_normal(
-    session, model, messages, temperature=0.4, max_tokens=15000, top_p=0.9, stop=None
+    session,
+    model,
+    messages,
+    temperature=0.4,
+    max_tokens=-1,
+    top_p=0.9,
+    url_local="http://localhost:11434",
 ):
-    url_ngrok = "https://6274-171-243-49-133.ngrok-free.app"
-    url_local = "http://localhost:11434"  # Đảm bảo endpoint này trả về stream
+    # Đảm bảo endpoint này trả về stream
     try:
         payload = {
             "model": model,
             "messages": messages,
+            "options": {
+                "temperature": temperature,
+                "num_predict": max_tokens,
+                "top_p": top_p,
+                "top_k": 50,
+                "mirostat": 1,
+                "mirostat_tau": 0.6,
+                "mirostat_eta": 0.6,
+            },
             "stream": True,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "top_p": top_p,
+            "keep_alive": 100,
         }
-        if stop:
-            payload["stop"] = stop
 
-        async with session.post(f"{url_ngrok}/api/chat", json=payload) as response:
+        async with session.post(f"{url_local}/api/chat", json=payload) as response:
             buffer = ""
             async for chunk in response.content.iter_chunked(1024):
                 try:
@@ -188,24 +197,32 @@ async def stream_response_normal(
 
 
 async def stream_response_deepthink(
-    session, model, messages, temperature=0.5, max_tokens=15000, top_p=0.9, stop=None
+    session,
+    messages,
+    temperature=0.5,
+    max_tokens=-1,
+    top_p=0.9,
+    url_local="http://localhost:11434",
 ):
-    url_ngrok = "https://6274-171-243-49-133.ngrok-free.app"
-    url_local = "http://localhost:11434"
+
     try:
         payload = {
-            "model": model,
+            "model": "smallthinker:latest",
             "messages": messages,
+            "options": {
+                "temperature": temperature,
+                "num_predict": max_tokens,
+                "top_p": top_p,
+                "top_k": 70,
+                "mirostat": 1,
+                "mirostat_tau": 0.6,
+                "mirostat_eta": 0.6,
+            },
             "stream": True,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "top_p": top_p,
+            "keep_alive": 5,
         }
 
-        if stop:  # Nếu có danh sách stop words thì thêm vào payload
-            payload["stop"] = stop
-
-        async with session.post(f"{url_ngrok}/api/chat", json=payload) as response:
+        async with session.post(f"{url_local}/api/chat", json=payload) as response:
             yield "\n"
             buffer = ""
             async for chunk in response.content.iter_chunked(1024):
@@ -302,9 +319,7 @@ async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_to
                 )
 
                 deepthink_response = ""  # Tạo biến chứa toàn bộ kết quả
-                async for part in stream_response_deepthink(
-                    session, model, brain_think
-                ):
+                async for part in stream_response_deepthink(session, brain_think):
                     yield part  # Gửi từng phần cho client ngay lập tức
                     deepthink_response += part  # Gom lại toàn bộ câu trả lời
 
@@ -331,11 +346,7 @@ async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_to
                 )
 
             elif is_search:
-                search_results = (
-                    search_duckduckgo_unlimited(prompt)
-                    if contains_search_keywords(prompt)
-                    else None
-                )
+                search_results = search_duckduckgo_unlimited(prompt)
                 if search_results:
                     extracted_info = extract_search_info(search_results)
                     search = f"""
@@ -378,37 +389,31 @@ async def chat_test(chat_request: ChatRequest):
     async def generate():
         async with aiohttp.ClientSession() as session:
             if is_deep_think and is_search:
-                search_results = (
-                    search_duckduckgo_unlimited(prompt)
-                    if contains_search_keywords(prompt)
-                    else None
-                )
+                search_results = search_duckduckgo_unlimited(prompt)
                 extracted_info = extract_search_info(search_results)
-                debate_prompt = textwrap.dedent(
-                    f"""
-                        Bạn là một trợ lý AI với khả năng tư duy sâu và tự nhiên như con người. 
-                        Hãy mô phỏng quá trình suy nghĩ của bạn theo ngôi thứ nhất và trình bày rõ ràng, chi tiết các bước giải quyết vấn đề. 
-                        Bạn đóng vai một lập trình viên xuất sắc, luôn tìm tòi, kiểm chứng và cải thiện giải pháp của mình.
+                num_results = str(len(search_results))
 
-                        Lưu ý 1: Tất cả các câu trả lời của bạn phải được trình bày dưới dạng văn bản tự nhiên. 
-                        **Quan trọng nhất:** tất cả thông tin cần được diễn đạt một cách tự nhiên và mạch lạc, không có sự phân chia rõ ràng theo các bước hay tiêu đề.
+                yield json.dumps({"num_results": num_results}) + "\n"
 
-                        Các bước bạn cần tuân thủ:
-                        1. Bắt đầu câu trả lời với câu: "Okey, vấn đề của user là '{prompt}'." (bạn có thể điều chỉnh câu mở đầu theo cách tự nhiên của mình).
-                        2. Chia nhỏ vấn đề thành các phần logic như: nguyên nhân và giải pháp.
-                        3. Kiểm tra độ chính xác của dữ liệu và tính logic của các lập luận.
-                        4. Diễn đạt lại ý tưởng một cách đơn giản, rõ ràng, tránh sử dụng các thuật ngữ phức tạp.
-                        5. Luôn tự hỏi "Còn cách nào tốt hơn không?" để cải thiện chất lượng giải pháp.
-                        6. Khi cần, hãy đính kèm các tài liệu liên quan như đoạn code hoặc các nguồn tham khảo bổ sung.
-                    """
-                )
+                search = f"""
+                    Kết quả tìm kiếm: \n"{extracted_info}"\n Dưa vào kết quả tìm kiếm trên, hãy cung cấp thêm thông tin của website đó.
+                """
+                debate_prompt = f"""
+                    Bạn là một trợ lý AI với khả năng tư duy sâu và tự nhiên như con người.
+                    \nHãy mô phỏng quá trình suy nghĩ của bạn theo ngôi thứ nhất và trình bày rõ ràng, chi tiết các bước giải quyết vấn đề.
+
+                    \nLưu ý: Tất cả các câu trả lời của bạn phải được trình bày dưới dạng văn bản tự nhiên. 
+                    \n**Quan trọng nhất:** Không dùng bất kỳ ký tự markdown nào. Tất cả thông tin cần được diễn đạt một cách tự nhiên và mạch lạc, không có sự phân chia rõ ràng theo các bước hay tiêu đề.
+                    
+                    \nVấn đề của user là: "{prompt}"\n
+                    
+                    {search}      
+                """
 
                 brain_think.append({"role": "user", "content": debate_prompt})
 
                 deepthink_response = ""  # Tạo biến chứa toàn bộ kết quả
-                async for part in stream_response_deepthink(
-                    session, model, brain_think
-                ):
+                async for part in stream_response_deepthink(session, brain_think):
                     yield part  # Gửi từng phần cho client ngay lập tức
                     deepthink_response += part  # Gom lại toàn bộ câu trả lời
 
@@ -419,12 +424,14 @@ async def chat_test(chat_request: ChatRequest):
                 # Chỉ lấy nội dung "content" từ brain_answer
                 content_only = brain_answer[0]["content"]
 
-                # Tạo refined_prompt với nội dung đã được làm sạch
-                refined_prompt = textwrap.dedent(
-                    f"""
-                    Dựa trên suy nghĩ \n"{content_only}"\n và thông tin tìm kiếm được \n'{extracted_info}'\n, hãy đưa ra kết luận đầy đủ và logic nhất cho vấn đề "{prompt}".
-                    """
-                ).strip()
+                refined_prompt = f"""
+                    Bám sát logic cốt lõi trong phân tích: '{content_only}'
+                    \nTrả lời câu hỏi: "{prompt}" với cấu trúc:
+                    \n- Giải đáp trực tiếp vấn đề.
+                    \n- Nếu có <code> hãy cải hiện code và phát triển thêm. 
+                    \n- Nếu cần thiết hãy giải thích đầy đủ.
+                    \nĐảm bảo mọi thông tin đều phục vụ trực tiếp cho việc giải quyết "{prompt}".
+=                """
 
                 messages.append({"role": "user", "content": refined_prompt})
                 full_response = ""
@@ -434,31 +441,16 @@ async def chat_test(chat_request: ChatRequest):
                 messages.append({"role": "assistant", "content": full_response})
 
             elif is_deep_think:
-                debate_prompt = textwrap.dedent(
-                    f"""
-                        Bạn là một trợ lý AI với khả năng tư duy sâu và tự nhiên như con người. 
-                        Hãy mô phỏng quá trình suy nghĩ của bạn theo ngôi thứ nhất và trình bày rõ ràng, chi tiết các bước giải quyết vấn đề. 
-                        Bạn đóng vai một lập trình viên xuất sắc, luôn tìm tòi, kiểm chứng và cải thiện giải pháp của mình.
-
-                        Lưu ý 1: Tất cả các câu trả lời của bạn phải được trình bày dưới dạng văn bản tự nhiên. 
-                        **Quan trọng nhất:** tất cả thông tin cần được diễn đạt một cách tự nhiên và mạch lạc, không có sự phân chia rõ ràng theo các bước hay tiêu đề.
-
-                        Các bước bạn cần tuân thủ:
-                        1. Bắt đầu câu trả lời với câu: "Okey, vấn đề của user là '{prompt}'." (bạn có thể điều chỉnh câu mở đầu theo cách tự nhiên của mình).
-                        2. Chia nhỏ vấn đề thành các phần logic như: nguyên nhân và giải pháp.
-                        3. Kiểm tra độ chính xác của dữ liệu và tính logic của các lập luận.
-                        4. Diễn đạt lại ý tưởng một cách đơn giản, rõ ràng, tránh sử dụng các thuật ngữ phức tạp.
-                        5. Luôn tự hỏi "Còn cách nào tốt hơn không?" để cải thiện chất lượng giải pháp.
-                        6. Khi cần, hãy đính kèm các tài liệu liên quan như đoạn code hoặc các nguồn tham khảo bổ sung.
-                    """
-                )
+                debate_prompt = f"""
+                    Bạn là một trợ lý AI với khả năng tư duy sâu và phân tích kỹ vấn đề.
+                    Hãy giải quyết vấn đề của user.
+=                    \nVấn đề của user là: "{prompt}"\n     
+                """
 
                 brain_think.append({"role": "user", "content": debate_prompt})
 
                 deepthink_response = ""  # Tạo biến chứa toàn bộ kết quả
-                async for part in stream_response_deepthink(
-                    session, model, brain_think
-                ):
+                async for part in stream_response_deepthink(session, brain_think):
                     yield part  # Gửi từng phần cho client ngay lập tức
                     deepthink_response += part  # Gom lại toàn bộ câu trả lời
 
@@ -469,13 +461,14 @@ async def chat_test(chat_request: ChatRequest):
                 # Chỉ lấy nội dung "content" từ brain_answer
                 content_only = brain_answer[0]["content"]
 
-                # Tạo refined_prompt với nội dung đã được làm sạch
-                refined_prompt = textwrap.dedent(
-                    f"""
-                    Dựa trên suy nghĩ "{content_only}", hãy đưa ra kết luận đầy đủ và logic nhất cho vấn đề '{prompt}'. 
-                    Khi cần, hãy đính kèm các tài liệu liên quan như đoạn code hoặc các nguồn tham khảo bổ sung.
-                    """
-                ).strip()
+                refined_prompt = f"""
+                    Bám sát logic cốt lõi trong phân tích: '{content_only}'
+                    \nTrả lời câu hỏi: "{prompt}" với cấu trúc:
+                    \n- Giải đáp trực tiếp vấn đề.
+                    \n- Nếu có <code> hãy cải hiện code và phát triển thêm. 
+                    \n- Nếu cần thiết hãy giải thích đầy đủ.
+                    \nĐảm bảo mọi thông tin đều phục vụ trực tiếp cho việc giải quyết "{prompt}".
+=                """
 
                 messages.append({"role": "user", "content": refined_prompt})
                 full_response = ""
@@ -485,15 +478,17 @@ async def chat_test(chat_request: ChatRequest):
                 messages.append({"role": "assistant", "content": full_response})
 
             elif is_search:
-                search_results = (
-                    search_duckduckgo_unlimited(prompt)
-                    if contains_search_keywords(prompt)
-                    else None
-                )
+                search_results = search_duckduckgo_unlimited(prompt)
                 if search_results:
                     extracted_info = extract_search_info(search_results)
+                    num_results = str(len(search_results))
+
+                    yield json.dumps(
+                        {"num_results": num_results, "search_results": search_results}
+                    ) + "\n"
+
                     search = f"""
-                        Kết quả tìm kiếm: \n"{extracted_info}"\n Dưa vào kết quả tìm kiếm trên, hãy cung cấp thêm thông tin 'body' và 'href' của website đó.
+                        Kết quả tìm kiếm: \n"{extracted_info}"\n Dưa vào kết quả tìm kiếm trên, hãy cung cấp thêm thông tin của website đó.
                     """
                     messages.append({"role": "user", "content": search})
                     full_response = ""
@@ -510,23 +505,3 @@ async def chat_test(chat_request: ChatRequest):
                 messages.append({"role": "assistant", "content": full_response})
 
     return StreamingResponse(generate(), media_type="text/plain")
-
-
-def contains_search_keywords(prompt):
-    """
-    Kiểm tra xem prompt có chứa các từ ekhóa liên quan đến tìm kiếm không.
-
-    Args:
-        prompt (str): Nội dung prompt.
-
-    Returns:
-        bool: True nếu prompt chứa từ khóa tìm kiếm, ngược lại False.
-    """
-    # Danh sách các từ khóa liên quan đến tìm kiếm
-    search_keywords = ["tìm kiếm", "search", "tìm", "kiếm", "tra cứu", "hỏi"]
-
-    # Kiểm tra xem prompt có chứa bất kỳ từ khóa nào không
-    for keyword in search_keywords:
-        if keyword.lower() in prompt.lower():
-            return True
-    return False

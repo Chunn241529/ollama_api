@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Itim&display=swap');
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: "Source Code Pro", serif;
+    font-family: "Itim", serif;
 }
 
 :root {
@@ -47,7 +47,7 @@
 
 .prompt-input {
     width: 100%;
-    height: 70px;
+    height: 77px;
     min-height: 50px;
     max-height: 500px;
     padding: 12px 16px;
@@ -55,7 +55,7 @@
     border-radius: 12px;
     background: var(--secondary-color);
     color: var(--text-color);
-    font-size: 1rem;
+    font-size: 1.1rem;
     outline: none;
     resize: none;
     overflow-y: auto;
@@ -63,6 +63,7 @@
 }
 
 .prompt-input::placeholder {
+    font-size: 20px;
     color: var(--placeholder-color);
 }
 
@@ -103,7 +104,7 @@
 }
 
 .prompt-actions-left .toggle-btn.active {
-    background: linear-gradient(to right, #1d7efd, #8f6fff);
+    background: linear-gradient(to right, #d81dfd, #8f6fff);
     color: #fff;
     box-shadow: 0 8px 10px rgba(0, 0, 0, 0.3);
 }
@@ -176,7 +177,7 @@
 }
 
 #send-prompt-btn {
-    background: linear-gradient(to right, #1d7efd, #8f6fff);
+    background: linear-gradient(to right, #d81dfd, #8f6fff);
     font-size: 1.8rem;
     color: #fff;
     transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.1s ease;
@@ -184,7 +185,7 @@
 }
 
 #send-prompt-btn:hover {
-    background: linear-gradient(to right, #5ca3ff, #a58dff);
+    background: linear-gradient(to right, #e877ff, #8f6fff);
     box-shadow: 0 6px 8px rgba(0, 0, 0, 0.3);
 }
 

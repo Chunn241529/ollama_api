@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Itim&display=swap');
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: "Source Code Pro", serif;
+    font-family: "Itim", serif;
 }
 
 :root {
@@ -27,7 +27,7 @@
 .app-header .heading {
     font-size: 3rem;
     width: fit-content;
-    background: linear-gradient(to right, #1d7efd, #8f6fff);
+    background: linear-gradient(to right, #d81dfd, #8f6fff);
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;

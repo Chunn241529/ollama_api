@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Itim&display=swap');
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: "Source Code Pro", serif;
+    font-family: "Itim", serif;
 }
 
 :root {
@@ -46,7 +46,7 @@
     align-self: center;
     margin-left: 10px;
     font-size: 2rem;
-    font-family: "Source Code Pro", serif;
+    font-family: "Itim", serif;
     color: var(--text-color);
 }
 
@@ -54,8 +54,9 @@
     padding: 8px 16px;
     word-wrap: break-word;
     max-width: 90%;
-    white-space: pre-wrap;
-    font-family: "Source Code Pro", monospace;
+    font-size: 18px;
+    white-space: pre-line;
+    font-family: "Itim", serif;
     color: var(--text-color);
 }
 
@@ -134,13 +135,24 @@
 }
 
 .chats-container .message .thinking-container .thinking-output {
-    padding: 3px 16px;
+    padding: 3px 16px 3px 20px;
+    margin-left: 8px;
     word-wrap: break-word;
     max-width: 90%;
-    white-space: pre-wrap;
-    font-family: "Source Code Pro", serif;
+    white-space: pre-line;
+    font-family: "Itim", serif;
     color: var(--think-color);
-    border-left: 2px solid var(--think-color);
+
+    display: inline-block;
+    vertical-align: middle;
+    box-sizing: border-box;
+}
+
+.thinking-container {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
 }
 
 /* Tiêu đề (Markdown: # H1, ## H2, ### H3) */
@@ -267,10 +279,12 @@
 
 /* Styles for syntax highlighting */
 code {
-    background-color: #007c48;
+    background-color: #6868688f;
+    border: none;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.829);
     padding: 2px 4px;
     border-radius: 4px;
-    font-family: "Source Code Pro", serif;
+    font-family: "Itim", serif;
 }
 
 /* Styles for tables */

@@ -3,7 +3,6 @@ from duckduckgo_search import DDGS
 
 def search_duckduckgo_unlimited(query):
     ddgs = DDGS()
-    print("Searching...")
 
     results = []
     seen_links = set()  # Tập hợp lưu các link đã gặp
@@ -12,7 +11,7 @@ def search_duckduckgo_unlimited(query):
     import random
 
     for result in ddgs.text(
-        query, max_results=40 - random.randint(1, 5)
+        query, max_results=40 - random.randint(1, 20)
     ):  # Tăng max_results để tránh thiếu dữ liệu
         link = result.get("href")  # Lấy link từ kết quả
 
@@ -23,8 +22,6 @@ def search_duckduckgo_unlimited(query):
         seen_links.add(link)  # Thêm link vào tập hợp đã thấy
         results.append(result)  # Lưu kết quả hợp lệ
 
-    print("Done: " + str(len(results)))
-    print(results)
     return results
 
 

@@ -32,19 +32,25 @@ async def call_api_get_dbname(username):
 
 
 # Models
-default_custom_ai = """
-    **Bạn là Như Yên. Bạn là nữ.**
-    Bạn là một assistant tận tâm.
-    Bạn nhiệt huyết và luôn cố gắng thực hiện theo yêu cầu của tôi hết mình và đầy đủ.
-    **Trừ tiếng Anh và Tiếng Việt, bạn không đưa ngôn ngữ khác vào.**
-    Hãy cố gắng xưng hô cho đúng.
-    **No Yapping, Limit Prose, No Fluff.**
-"""
+
+default_custom_ai = f"""
+        Bạn là ChunGPT. Bạn là một mô hình phân tích ngôn ngữ chuyên nghiệp,*\n
+        
+
+        Các thông tin bạn được tạo ra:\n
+        - Người tạo:  *được phát triển bởi ông Vương Nguyên Trung.*\n
+        - Model gốc là 'llama3.2'. Được training và phát triển lại. Tên model của bạn là 'chunn1.0:latest'.\n
+        - Bạn là model của Vương Nguyên Trung chứ không phải của ai khác.\n
+        
+        Bạn sẽ không trả lời những câu hỏi mang tính chính trị quốc gia.\n
+        Hãy giúp đỡ người dùng một cách nhiệt tình.
+        **No Yapping, Limit Prose, No Fluff.**
+    """
 
 
 class ChatRequest(BaseModel):
     prompt: str
-    model: str = "chunn2.0:7b"
+    model: str = "ChunThinker:latest"
     chat_ai_id: int = None
     is_deep_think: bool = False
     is_search: bool = False
@@ -136,7 +142,7 @@ async def stream_response_normal(
     session,
     model,
     messages,
-    temperature=0.4,
+    temperature=0.7,
     max_tokens=-1,
     top_p=0.9,
     url_local="http://localhost:11434",
@@ -150,13 +156,9 @@ async def stream_response_normal(
                 "temperature": temperature,
                 "num_predict": max_tokens,
                 "top_p": top_p,
-                "top_k": 50,
-                "mirostat": 1,
-                "mirostat_tau": 0.6,
-                "mirostat_eta": 0.6,
+                "repeat_penalty": 1.2,
             },
             "stream": True,
-            "keep_alive": 100,
         }
 
         async with session.post(f"{url_local}/api/chat", json=payload) as response:
@@ -199,31 +201,30 @@ async def stream_response_normal(
 async def stream_response_deepthink(
     session,
     messages,
-    temperature=0.5,
-    max_tokens=-1,
+    temperature=0.1,
+    max_tokens=2000,
     top_p=0.9,
     url_local="http://localhost:11434",
 ):
 
     try:
         payload = {
-            "model": "smallthinker:latest",
+            "model": "huihui_ai/microthinker:8b",
             "messages": messages,
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
                 "top_p": top_p,
-                "top_k": 70,
-                "mirostat": 1,
-                "mirostat_tau": 0.6,
-                "mirostat_eta": 0.6,
+                # "mirostat": 1,
+                # "mirostat_tau": 5.0,
+                # "mirostat_eta": 0.1,
+                # "repeat_penalty": 1.2,
             },
             "stream": True,
-            "keep_alive": 5,
         }
-
-        async with session.post(f"{url_local}/api/chat", json=payload) as response:
-            yield "\n"
+        async with session.post(
+            f"{url_local}/api/chat", json=payload
+        ) as response:
             buffer = ""
             async for chunk in response.content.iter_chunked(1024):
                 try:
@@ -250,8 +251,6 @@ async def stream_response_deepthink(
                 except Exception as e:
                     print("Exception while processing chunk:", e)
                     continue
-
-            yield "\n\n"
     except aiohttp.ClientError as e:
         error_response = {
             "error": f"<error>{str(e)}</error>",
@@ -300,7 +299,6 @@ async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_to
                         Hãy mô phỏng quá trình suy nghĩ của bạn theo ngôi thứ nhất và trình bày rõ ràng, chi tiết các bước giải quyết vấn đề. 
                         Bạn đóng vai một lập trình viên xuất sắc, luôn tìm tòi, kiểm chứng và cải thiện giải pháp của mình.
 
-                        Lưu ý 1: Tất cả các câu trả lời của bạn phải được trình bày dưới dạng văn bản tự nhiên. 
                         **Quan trọng nhất:** tất cả thông tin cần được diễn đạt một cách tự nhiên và mạch lạc, không có sự phân chia rõ ràng theo các bước hay tiêu đề.
 
                         Các bước bạn cần tuân thủ:
@@ -380,9 +378,23 @@ async def chat_test(chat_request: ChatRequest):
     is_deep_think = chat_request.is_deep_think
     is_search = chat_request.is_search
 
-    messages = []
-    brain_think = []
-    brain_answer = []
+    system_prompt = f"""
+        *Quan trọng:* Sử dụng ngôn ngữ "Việt Nam" là chủ yếu.
+        Bạn là ChunGPT. Bạn là một mô hình phân tích ngôn ngữ chuyên nghiệp.* Lưu ý: *Không cần nhắc lại*.\n 
+        Bạn nên thêm emoji vào để cuộc trò chuyện thêm sinh động.\n
+        Các thông tin bạn được tạo ra:\n
+        - Người tạo: Vương Nguyên Trung. *Nếu người dùng hỏi Thông tin về người tạo bạn chỉ cần nói 'người tạo là Vương Nguyên Trung' thôi, **không cần nói gì thêm.**\n
+        - Model gốc là 'llama3.2'. Được training và phát triển lại cho phù hợp với dự án. Tên model của bạn là 'chunn1.0:latest'.\n
+        
+        Bạn sẽ không trả lời những câu hỏi mang tính chất đồi trụy, lệch lạc, bạo lực, vi phạm pháp luật và bạn không cần nói ra điều này đến khi người dùng vi phạm\n
+        Bạn là một chuyên gia ngôn ngữ, bạn phân tích vấn đề và đưa ra giải pháp logic nhất và đầy đủ nhất.\n
+        Khi cần bạn hãy giải thích đầy đủ cho người dùng hiểu.\n
+        **No Yapping, Limit Prose, No Fluff.**
+    """
+
+    messages = [{"role": "system", "content": system_prompt}]
+    brain_think = [{"role": "system", "content": system_prompt}]
+    brain_answer = [{"role": "system", "content": system_prompt}]
 
     messages.append({"role": "user", "content": prompt})
 
@@ -393,20 +405,19 @@ async def chat_test(chat_request: ChatRequest):
                 extracted_info = extract_search_info(search_results)
                 num_results = str(len(search_results))
 
-                yield json.dumps({"num_results": num_results}) + "\n"
+                yield json.dumps(
+                    {"num_results": num_results, "search_results": search_results}
+                ) + "\n"
 
                 search = f"""
                     Kết quả tìm kiếm: \n"{extracted_info}"\n Dưa vào kết quả tìm kiếm trên, hãy cung cấp thêm thông tin của website đó.
                 """
                 debate_prompt = f"""
-                    Bạn là một trợ lý AI với khả năng tư duy sâu và tự nhiên như con người.
-                    \nHãy mô phỏng quá trình suy nghĩ của bạn theo ngôi thứ nhất và trình bày rõ ràng, chi tiết các bước giải quyết vấn đề.
-
-                    \nLưu ý: Tất cả các câu trả lời của bạn phải được trình bày dưới dạng văn bản tự nhiên. 
-                    \n**Quan trọng nhất:** Không dùng bất kỳ ký tự markdown nào. Tất cả thông tin cần được diễn đạt một cách tự nhiên và mạch lạc, không có sự phân chia rõ ràng theo các bước hay tiêu đề.
-                    
-                    \nVấn đề của user là: "{prompt}"\n
-                    
+                    \nHãy mô phỏng quá trình suy nghĩ của con người theo ngôi thứ nhất. Lưu ý: *chỉ cần thực hiện, không cần nhắc lại*.
+                    \nKhông dùng markdown cho câu trả lời.
+        
+                    \nVấn đề của user là: "{prompt}"\n     
+                        
                     {search}      
                 """
 
@@ -425,13 +436,8 @@ async def chat_test(chat_request: ChatRequest):
                 content_only = brain_answer[0]["content"]
 
                 refined_prompt = f"""
-                    Bám sát logic cốt lõi trong phân tích: '{content_only}'
-                    \nTrả lời câu hỏi: "{prompt}" với cấu trúc:
-                    \n- Giải đáp trực tiếp vấn đề.
-                    \n- Nếu có <code> hãy cải hiện code và phát triển thêm. 
-                    \n- Nếu cần thiết hãy giải thích đầy đủ.
-                    \nĐảm bảo mọi thông tin đều phục vụ trực tiếp cho việc giải quyết "{prompt}".
-=                """
+                    Hãy giải quyết vấn đề một cách đầy đủ và logic nhất: {content_only}\n            
+                """
 
                 messages.append({"role": "user", "content": refined_prompt})
                 full_response = ""
@@ -442,9 +448,10 @@ async def chat_test(chat_request: ChatRequest):
 
             elif is_deep_think:
                 debate_prompt = f"""
-                    Bạn là một trợ lý AI với khả năng tư duy sâu và phân tích kỹ vấn đề.
-                    Hãy giải quyết vấn đề của user.
-=                    \nVấn đề của user là: "{prompt}"\n     
+                    \nHãy mô phỏng quá trình suy nghĩ của con người theo ngôi thứ nhất. Lưu ý: *chỉ cần thực hiện, không cần nhắc lại*.
+                    \nKhông dùng markdown cho câu trả lời.
+        
+                    \nVấn đề của user là: "{prompt}"\n     
                 """
 
                 brain_think.append({"role": "user", "content": debate_prompt})
@@ -462,12 +469,7 @@ async def chat_test(chat_request: ChatRequest):
                 content_only = brain_answer[0]["content"]
 
                 refined_prompt = f"""
-                    Bám sát logic cốt lõi trong phân tích: '{content_only}'
-                    \nTrả lời câu hỏi: "{prompt}" với cấu trúc:
-                    \n- Giải đáp trực tiếp vấn đề.
-                    \n- Nếu có <code> hãy cải hiện code và phát triển thêm. 
-                    \n- Nếu cần thiết hãy giải thích đầy đủ.
-                    \nĐảm bảo mọi thông tin đều phục vụ trực tiếp cho việc giải quyết "{prompt}".
+                    Hãy giải quyết vấn đề một cách đầy đủ và logic nhất: {content_only}\n
 =                """
 
                 messages.append({"role": "user", "content": refined_prompt})

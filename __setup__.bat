@@ -53,6 +53,7 @@ echo Khởi tạo file requirements.txt...
     echo datasets
     echo accelerate
     echo pywin32
+    echo huggingface_hub
 ) > requirements.txt
 
 

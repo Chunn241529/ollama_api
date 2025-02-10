@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Itim&display=swap');
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: "Source Code Pro", serif;
+    font-family: "Itim", serif;
 }
 
 :root {
@@ -35,4 +35,15 @@ body {
     width: 100%;
     padding: 0 20px;
     max-width: 980px;
+}
+
+
+.warning-text {
+    bottom: 0;
+    width: 100%;
+    padding-top: 10px;
+    text-align: center;
+    color: var(--think-color);
+    font-size: 0.7rem;
+    font-weight: bold;
 }

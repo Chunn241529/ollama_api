@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Itim&display=swap');
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: "Source Code Pro", serif;
+    font-family: "Itim", serif;
 }
 
 :root {
@@ -113,68 +113,72 @@
     }
 }
 
-@media (max-width: 430px) {
+@media (max-width: 430px),
+(max-width: 5.8in),
+(max-width: 390px) {
+    .container {
+        overflow-y: auto !important;
+        max-height: calc(100vh - 230px) !important;
+    }
+
+
+    .chats-container .message .thinking-container .thinking-output {
+        max-width: 90%;
+    }
+
+    .chats-container .bot-message .thinking-container,
+    .chats-container .bot-message .message-text {
+        flex: 0 0 100%;
+        margin-left: calc(4px + 11px);
+        max-width: 90% !important;
+    }
+
+    .prompt-form #stop-response-btn {
+        font-size: 1.5rem;
+    }
+
     .app-header .heading {
-        font-size: 1.3rem;
+        font-size: 1.8rem;
     }
 
     .app-header .sub-heading {
-        font-size: 1.1rem;
+        font-size: 1.4rem;
     }
 
     .suggestions .suggestions-item {
         width: 120px;
     }
 
+    .suggestions .suggestions-item .text {
+        font-size: 0.9rem;
+    }
+
     .prompt-input {
-        font-size: 0.75rem;
+        font-size: 0.9rem;
+        height: 67px;
+    }
+
+    .prompt-input::placeholder {
+        font-size: 0.9rem;
     }
 
     .prompt-actions-left .toggle-btn {
-        min-width: 60px;
+        min-width: 40px;
+        min-height: 40px;
         font-size: 0.75rem;
     }
 
     .prompt-actions-right button {
-        width: 30px;
-        height: 30px;
-        font-size: 0.8rem;
-    }
-}
-
-@media (max-width: 390px) {
-    .app-header .heading {
-        font-size: 1.2rem;
-    }
-
-    .app-header .sub-heading {
+        min-width: 40px;
+        min-height: 40px;
         font-size: 1rem;
     }
 
-    .suggestions .suggestions-item {
-        width: 100px;
+    #send-prompt-btn {
+        font-size: 1rem;
     }
 
-    .prompt-form {
-        padding: 8px;
-    }
-
-    .prompt-input {
-        font-size: 0.7rem;
-    }
-
-    .prompt-actions-left .toggle-btn {
-        min-width: 50px;
-        font-size: 0.7rem;
-    }
-
-    .prompt-actions-right button {
-        width: 25px;
-        height: 25px;
-        font-size: 0.7rem;
-    }
-
-    .dropdown {
-        display: none;
+    .right-container.active {
+        width: 100%;
     }
 }

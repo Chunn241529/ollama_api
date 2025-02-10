@@ -1,10 +1,10 @@
-@import url('https://fonts.googleapis.com/css2?family=Source+Code+Pro:ital,wght@0,200..900;1,200..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Itim&display=swap');
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: "Source Code Pro", serif;
+    font-family: "Itim", serif;
 }
 
 :root {
@@ -21,90 +21,47 @@
 /* search */
 .search-output {
     display: none;
-    margin: 3px 69px;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    position: fixed;
+    top: 20px;
+    right: 69px;
     font-size: 16px;
     font-weight: bold;
-    align-content: center;
-    justify-content: center;
-    font-family: "Source Code Pro", serif;
+    font-family: "Itim", serif;
     padding: 8px 16px;
-    min-width: 120px;
     height: 35px;
     border: none;
     border-radius: 15px;
-    background: var(--text-color);
-    color: var(--primary-color);
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    background: var(--primary-color);
+    color: var(--text-color);
+    box-shadow: 0 8px 10px rgba(0, 0, 0, 0.623);
     cursor: pointer;
+    z-index: 1000;
 }
 
-/* Tạo hiệu ứng nhảy */
-.search-output span {
-    display: inline-block;
-    font-size: 16px;
-    font-weight: bold;
-    align-content: center;
-    justify-content: center;
-    font-family: "Source Code Pro", serif;
-    animation: bounce 0.5s infinite alternate ease-in-out;
+.search-output:hover {
+    background: var(--secondary-hover-color);
 }
 
-/* Định nghĩa animation */
-@keyframes bounce {
-    from {
-        transform: translateY(0);
+
+.search-icon {
+    width: 24px;
+    height: 24px;
+    animation: gentleRotate 2s ease-in-out infinite alternate;
+}
+
+@keyframes gentleRotate {
+    0% {
+        transform: rotate(-15deg);
     }
 
-    to {
-        transform: translateY(-2px);
+    100% {
+        transform: rotate(15deg);
     }
 }
 
-/* Tạo hiệu ứng delay cho từng chữ */
-.search-output span:nth-child(1) {
-    animation-delay: 0s;
-}
-
-.search-output span:nth-child(2) {
-    animation-delay: 0.5s;
-}
-
-.search-output span:nth-child(3) {
-    animation-delay: 1s;
-}
-
-.search-output span:nth-child(4) {
-    animation-delay: 1.5s;
-}
-
-.search-output span:nth-child(5) {
-    animation-delay: 2s;
-}
-
-.search-output span:nth-child(6) {
-    animation-delay: 2.5s;
-}
-
-.search-output span:nth-child(7) {
-    animation-delay: 3s;
-}
-
-.search-output span:nth-child(8) {
-    animation-delay: 3.5s;
-}
-
-.search-output span:nth-child(9) {
-    animation-delay: 4s;
-}
-
-.search-output span:nth-child(10) {
-    animation-delay: 4.5s;
-}
-
-.search-output span:nth-child(11) {
-    animation-delay: 5s;
-}
-
-.search-output span:nth-child(12) {
-    animation-delay: 5.5s;
+.search-output:hover .search-icon {
+    animation: gentleRotate 0.5s ease-in-out infinite alternate;
 }

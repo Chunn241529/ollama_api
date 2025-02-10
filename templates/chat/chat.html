@@ -3,7 +3,12 @@
 
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+
+
   <title>chunGPT</title>
   <link rel="icon" type="image/png" sizes="32x32" href="templates\static\assets\favicon\favicon.ico" />
 
@@ -19,6 +24,7 @@
   <link rel="stylesheet" href="/templates/static/css/components/iframe.css" />
   <link rel="stylesheet" href="/templates/static/css/components/search.css" />
   <link rel="stylesheet" href="/templates/static/css/components/responsive_chat.css" />
+  <link rel="stylesheet" href="/templates/static/css/components/loading_bars.css" />
 
   <!-- css main -->
   <link rel="stylesheet" href="/templates/static/css/chat.css" />
@@ -45,20 +51,20 @@
     </header>
     <ul class="suggestions">
       <li class="suggestions-item">
-        <p class="text">Xây dựng một trang login đầy đủ tính năng và animation với HTML, CSS, JavaScript</p>
+        <p class="text">Xây dựng một trang login với UI thật đẹp bằng HTML, CSS, JavaScript.</p>
         <span class="material-symbols-rounded">draw</span>
       </li>
       <li class="suggestions-item">
-        <p class="text">Tạo trang web ứng dụng note bằng HTML, CSS, JavaScript</p>
+        <p class="text">Xây dựng bảng kế hoạch giảm 10kg trong vòng 6 tháng.</p>
         <span class="material-symbols-rounded">note</span>
       </li>
       <li class="suggestions-item">
-        <p class="text">Thiết kế một landing page giới thiệu sản phẩm với HTML, CSS, JavaScript</p>
-        <span class="material-symbols-rounded">web</span>
+        <p class="text">Hãy cho tôi biết tất cả thông tin về bạn và người tạo ra bạn.</p>
+        <span class="material-symbols-rounded">contact_support</span>
       </li>
       <li class="suggestions-item">
-        <p class="text">Xây dựng đầy đủ fine tuning AI với model có sẵn bằng code python...</p>
-        <span class="material-symbols-rounded">smart_toy</span>
+        <p class="text">Tôi muốn học tiếng anh giao tiếp trong vòng 3 tháng.</p>
+        <span class="material-symbols-rounded">wysiwyg</span>
       </li>
     </ul>
 
@@ -95,7 +101,7 @@
               </button>
             </div>
             <!-- Dropdown menu -->
-            <!-- <select id="deep-think-options" class="dropdown"></select> -->
+            <select id="deep-think-options" class="dropdown"></select>
 
             <!-- Nhóm nút khác bên phải -->
             <div class="prompt-actions-right">
@@ -109,10 +115,14 @@
                 arrow_upward
               </button>
             </div>
+
           </div>
         </form>
       </div>
+      <p class="warning-text">Do AI tạo ra, chỉ để tham khảo</p>
+
     </div>
+
     <div class="right-container">
       <iframe class="right" id="output"></iframe>
       <button type="button" class="material-symbols-rounded" id="move_selection_left">move_selection_left</button>

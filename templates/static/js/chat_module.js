@@ -8,14 +8,10 @@ let userMessage = "";
 
 let autoScroll = true; // Ban đầu cho phép tự động scroll
 
+
 container.addEventListener("scroll", () => {
-    // Kiểm tra nếu container chưa cuộn hết đến cuối
-    // (scrollTop + clientHeight < scrollHeight nghĩa là người dùng cuộn lên)
-    if (container.scrollTop + container.clientHeight < container.scrollHeight) {
-        autoScroll = false;
-    } else {
-        autoScroll = true;
-    }
+    const atBottom = Math.abs(container.scrollTop + container.clientHeight - container.scrollHeight) < 10; // Kiểm tra có gần cuối hay không
+    autoScroll = atBottom;
 });
 
 const scrollToBottom = () => {
@@ -130,7 +126,7 @@ let model_current;
 
 document.addEventListener('DOMContentLoaded', function () {
 
-    fetch('http://127.0.0.1:2401/chat/get_models_test')
+    fetch('http://localhost:2401/chat/get_models_test')
         .then(response => response.json())
         .then(data => {
             if (data.models && Array.isArray(data.models)) {
@@ -170,27 +166,28 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
     const modelName = BotMsgDiv.querySelector('.modelName');
     const searchOutput = document.querySelector(".search-output");
 
-    // modelName.textContent = model_current;
-    modelName.textContent = "chun-gpt";
-
-
     controller = new AbortController();
 
+    modelName.textContent = "chun-gpt";
+
     if (is_deep_think) {
-        const loadingBars = BotMsgDiv.querySelectorAll('.loading-bars');
+        const loadingBars = BotMsgDiv.querySelectorAll('.message-text .loading-bars');
         loadingBars.forEach(lb => lb.style.display = 'none');
     } else {
-        thinkingOutput.style.borderLeft = 'none';
+        document.querySelector(".lds-dual-ring").style.display = "none";
     }
+
     if (is_search || is_search && is_deep_think) {
         searchOutput.style.display = "block";
+        document.getElementById("move_selection_right").style.display = "none";
+        document.getElementById("move_selection_left").style.display = "none";
     }
 
     // Khởi tạo biến riêng cho mỗi loại kết quả
     let resultThinking = "";
     let resultText = "";
 
-    const response = await fetch("http://127.0.0.1:2401/chat/test", {
+    const response = await fetch("http://localhost:2401/chat/test", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -245,6 +242,11 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
                 if (jsonData.num_results) {
                     num_search = jsonData.num_results;
                     search_results = jsonData.search_results;
+
+                    if (search_results !== lastRenderedSearch) {
+                        lastRenderedSearch = search_results;
+                        await renderSearch(search_results);
+                    }
                 }
 
                 // Chỉ cập nhật nếu có giá trị `num_search`
@@ -254,9 +256,11 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
 
 
                 if (jsonData.type === "thinking") {
+                    thinkingOutput.style.borderLeft = '2px solid var(--think-color)';
                     resultThinking += content;
                     thinkingOutput.innerHTML = marked.parse(resultThinking);
                 } else if (jsonData.type === "text") {
+                    document.querySelector(".lds-dual-ring").style.display = "none";
                     resultText += content;
                     textElement.innerHTML = marked.parse(resultText);
                 }
@@ -295,10 +299,6 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
             }
         }
 
-        if (search_results !== lastRenderedSearch) {
-            lastRenderedSearch = search_results;
-            await renderSearch(search_results);
-        }
 
         // Các xử lý bổ sung
         hljs.highlightAll();
@@ -307,7 +307,6 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
         if (autoScroll) {
             scrollToBottom();
         }
-
     }
 
     // Nếu có dữ liệu còn lại trong buffer sau khi đọc xong
@@ -374,7 +373,6 @@ const handleFormSubmit = (e) => {
     hideSuggestion(e);
 
 
-
     userMessage = promptInput.value.trim();
     if (!userMessage) return;
 
@@ -384,18 +382,25 @@ const handleFormSubmit = (e) => {
     chatsContainer.appendChild(userMsgDiv);
 
     promptInput.value = ""; // Clear the input value after submitting
-    textarea.style.height = `70px`;
+    textarea.style.height = `77px`;
     btn_stop.style.display = `block`;
     btn_send.style.display = `none`;
 
     setTimeout(() => {
         const BotMsgHTML = `
             <img src="templates/static/assets/img/1.jpg" alt="" class="avatar"><p class="modelName"></p>
-            <button type="button" class="search-output" id="search">Searching...</button>
+            <button type="button" class="search-output" id="search">
+                <svg class="search-icon" viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                </svg>
+            </button>
+            
             <div class="thinking-container">
-                <p class="thinking-output"></p>
+                <p class="thinking-output">
+                </p>
+                <span class="lds-dual-ring"></span>
             </div>
-               
+     
             <p class="message-text">
                 <span class="loading-bars">
                     <span></span><span></span><span></span>
@@ -403,26 +408,13 @@ const handleFormSubmit = (e) => {
                 <span class="loading-bars">
                     <span></span><span></span>
                 </span>
-                <span class="loading-bars" style="width: 410px;">
-                    <span></span>
-                </span>
             </p>
         `;
 
         const BotMsgDiv = createMsgElement(BotMsgHTML, "bot-message");
         chatsContainer.appendChild(BotMsgDiv);
 
-        // Sau khi BotMsgDiv được thêm vào DOM, tìm phần tử .search-output và chuyển đổi nội dung của nó thành các <span>
-        const searchOutput = BotMsgDiv.querySelector(".search-output");
-        if (searchOutput) {
-            const text = searchOutput.textContent;
-            searchOutput.innerHTML = text.split("").map(char => `<span>${char}</span>`).join("");
-        }
-
         const searchElement = document.getElementById("search");
-        if (!searchElement) {
-            console.error("Không tìm thấy phần tử với id 'search'");
-        }
         searchElement.addEventListener("click", async function () {
             document.getElementById("close-iframe").style.display = "block";
             document.querySelector('.right-container').classList.add('active');
@@ -436,6 +428,10 @@ const handleFormSubmit = (e) => {
             generateResponse(BotMsgDiv, true, false);
         } else {
             generateResponse(BotMsgDiv, false, false);
+        }
+        autoScroll = true;
+        if (autoScroll) {
+            scrollToBottom();
         }
     }, 600);
 };
@@ -458,6 +454,10 @@ promptInput.addEventListener("keydown", (e) => {
             // Nếu chỉ nhấn Enter, gửi form
             e.preventDefault();
             handleFormSubmit(e);
+            autoScroll = true;
+            if (autoScroll) {
+                scrollToBottom();
+            }
         }
     }
 });
@@ -467,7 +467,7 @@ promptInput.addEventListener("keydown", (e) => {
 document.querySelectorAll(".suggestions-item").forEach(item => {
     item.addEventListener("click", () => {
         promptInput.value = item.querySelector(".text").textContent;
-        // promptForm.dispatchEvent(new Event("submit"));
+        promptForm.dispatchEvent(new Event("submit"));
     })
 })
 
@@ -502,7 +502,7 @@ function extractPython(response) {
 
 // 🔹 Render HTML vào iframe
 async function renderCodeHtml(extract) {
-
+    document.querySelector(".right-container").style.background = "#fff";
     const htmlContent = extractHTML(extract);
     const cssContent = extractCSS(extract);
     const jsContent = extractJavaScript(extract);
@@ -533,21 +533,42 @@ async function renderCodeHtml(extract) {
 
 async function renderSearch(search_results) {
 
-    if (!search_results.length) return;
-
     const cssContent = `
+
+        @import url('https://fonts.googleapis.com/css2?family=Itim&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Itim", serif;
+        }
+
+        :root {
+            --text-color: #edf3ff;
+            --think-color: #aaaaaad8;
+            --subheading-color: #97a7ca;
+            --placeholder-color: #c3cdde;
+            --primary-color: #101623;
+            --secondary-color: #283045;
+            --secondary-hover-color: #333e58;
+            --scrollbar-color: #626a7f;
+        }
+
         .search-box {
             padding: 10px;
-            box-shadow: 0 4px 8px rgba(3, 3, 3, 0.2);
+            box-shadow: 0 4px 8px rgba(3, 3, 3, 0.8);
             border-radius: 10px;
             margin: 20px;
-            background: #fff;
+            background: #333e58;
+            color: var(--text-color);
             word-wrap: break-word;
             font-family: "Source Code Pro", serif;
+            border: none;
         }
 
         .search-box:hover {
-            background: #f5f5f5;
+            background:rgba(68, 75, 90, 0.87);
         }
 
         .search-title {

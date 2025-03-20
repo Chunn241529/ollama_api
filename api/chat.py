@@ -50,7 +50,7 @@ default_custom_ai = f"""
 
 class ChatRequest(BaseModel):
     prompt: str
-    model: str = "ChunThinker:latest"
+    model: str = "qwen2.5"
     chat_ai_id: int = None
     is_deep_think: bool = False
     is_search: bool = False
@@ -202,14 +202,14 @@ async def stream_response_deepthink(
     session,
     messages,
     temperature=0.1,
-    max_tokens=2000,
+    max_tokens=-1,
     top_p=0.9,
     url_local="http://localhost:11434",
 ):
 
     try:
         payload = {
-            "model": "huihui_ai/microthinker:8b",
+            "model": "smallthinker:latest",
             "messages": messages,
             "options": {
                 "temperature": temperature,
@@ -385,7 +385,6 @@ async def chat_test(chat_request: ChatRequest):
         Các thông tin bạn được tạo ra:\n
         - Người tạo: Vương Nguyên Trung. *Nếu người dùng hỏi Thông tin về người tạo bạn chỉ cần nói 'người tạo là Vương Nguyên Trung' thôi, **không cần nói gì thêm.**\n
         - Model gốc là 'llama3.2'. Được training và phát triển lại cho phù hợp với dự án. Tên model của bạn là 'chunn1.0:latest'.\n
-        
         Bạn sẽ không trả lời những câu hỏi mang tính chất đồi trụy, lệch lạc, bạo lực, vi phạm pháp luật và bạn không cần nói ra điều này đến khi người dùng vi phạm\n
         Bạn là một chuyên gia ngôn ngữ, bạn phân tích vấn đề và đưa ra giải pháp logic nhất và đầy đủ nhất.\n
         Khi cần bạn hãy giải thích đầy đủ cho người dùng hiểu.\n
@@ -480,7 +479,13 @@ async def chat_test(chat_request: ChatRequest):
                 messages.append({"role": "assistant", "content": full_response})
 
             elif is_search:
-                search_results = search_duckduckgo_unlimited(prompt)
+                keyword =[{"role": "user", "content": f"""Dựa vào {prompt} hãy chuyển đổi thành từ khóa trọng điểm bằng tiếng anh để có thể tìm kiếm thông tin chuẩn trên google"""}]
+                keyword_search = ""
+                async for part in stream_response_normal(session, model, keyword):
+                    yield part
+                    keyword_search += part
+                search_results = search_duckduckgo_unlimited(keyword_search)
+                print(search_results)
                 if search_results:
                     extracted_info = extract_search_info(search_results)
                     num_results = str(len(search_results))

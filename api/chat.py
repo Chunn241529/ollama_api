@@ -35,11 +35,8 @@ async def call_api_get_dbname(username):
 
 default_custom_ai = f"""
         Bạn là ChunGPT. Bạn là một mô hình phân tích ngôn ngữ chuyên nghiệp,*\n
-        
-
         Các thông tin bạn được tạo ra:\n
         - Người tạo:  *được phát triển bởi ông Vương Nguyên Trung.*\n
-        - Model gốc là 'llama3.2'. Được training và phát triển lại. Tên model của bạn là 'chunn1.0:latest'.\n
         - Bạn là model của Vương Nguyên Trung chứ không phải của ai khác.\n
         
         Bạn sẽ không trả lời những câu hỏi mang tính chính trị quốc gia.\n
@@ -50,7 +47,7 @@ default_custom_ai = f"""
 
 class ChatRequest(BaseModel):
     prompt: str
-    model: str = "qwen2.5"
+    model: str = "gemma3"
     chat_ai_id: int = None
     is_deep_think: bool = False
     is_search: bool = False
@@ -144,7 +141,7 @@ async def stream_response_normal(
     messages,
     temperature=0.7,
     max_tokens=-1,
-    top_p=0.9,
+    top_p=0.95,
     url_local="http://localhost:11434",
 ):
     # Đảm bảo endpoint này trả về stream
@@ -201,24 +198,20 @@ async def stream_response_normal(
 async def stream_response_deepthink(
     session,
     messages,
-    temperature=0.1,
-    max_tokens=-1,
-    top_p=0.9,
+    temperature=0.8,
+    max_tokens=9060,
+    top_p=0.95,
     url_local="http://localhost:11434",
 ):
 
     try:
         payload = {
-            "model": "smallthinker:latest",
+            "model": "huihui_ai/microthinker:8b",
             "messages": messages,
             "options": {
                 "temperature": temperature,
                 "num_predict": max_tokens,
                 "top_p": top_p,
-                # "mirostat": 1,
-                # "mirostat_tau": 5.0,
-                # "mirostat_eta": 0.1,
-                # "repeat_penalty": 1.2,
             },
             "stream": True,
         }
@@ -384,11 +377,9 @@ async def chat_test(chat_request: ChatRequest):
         Bạn nên thêm emoji vào để cuộc trò chuyện thêm sinh động.\n
         Các thông tin bạn được tạo ra:\n
         - Người tạo: Vương Nguyên Trung. *Nếu người dùng hỏi Thông tin về người tạo bạn chỉ cần nói 'người tạo là Vương Nguyên Trung' thôi, **không cần nói gì thêm.**\n
-        - Model gốc là 'llama3.2'. Được training và phát triển lại cho phù hợp với dự án. Tên model của bạn là 'chunn1.0:latest'.\n
         Bạn sẽ không trả lời những câu hỏi mang tính chất đồi trụy, lệch lạc, bạo lực, vi phạm pháp luật và bạn không cần nói ra điều này đến khi người dùng vi phạm\n
         Bạn là một chuyên gia ngôn ngữ, bạn phân tích vấn đề và đưa ra giải pháp logic nhất và đầy đủ nhất.\n
         Khi cần bạn hãy giải thích đầy đủ cho người dùng hiểu.\n
-        **No Yapping, Limit Prose, No Fluff.**
     """
 
     messages = [{"role": "system", "content": system_prompt}]
@@ -447,9 +438,6 @@ async def chat_test(chat_request: ChatRequest):
 
             elif is_deep_think:
                 debate_prompt = f"""
-                    \nHãy mô phỏng quá trình suy nghĩ của con người theo ngôi thứ nhất. Lưu ý: *chỉ cần thực hiện, không cần nhắc lại*.
-                    \nKhông dùng markdown cho câu trả lời.
-        
                     \nVấn đề của user là: "{prompt}"\n     
                 """
 
@@ -468,7 +456,7 @@ async def chat_test(chat_request: ChatRequest):
                 content_only = brain_answer[0]["content"]
 
                 refined_prompt = f"""
-                    Hãy giải quyết vấn đề một cách đầy đủ và logic nhất: {content_only}\n
+                   Dựa vào suy luận: "{content_only}"\n hãy phân tích, tối ưu hóa suy luận để đưa ra câu trả lời logic và tốt nhất.
 =                """
 
                 messages.append({"role": "user", "content": refined_prompt})

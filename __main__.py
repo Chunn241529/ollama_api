@@ -76,7 +76,7 @@ async def get_test(request: Request):
     response.headers["Expires"] = "0"
     return response
 
-
+  
 @app.get("/", response_class=RedirectResponse)
 async def redirect_to_chat():
     return RedirectResponse(url="/chat", status_code=302)

@@ -8,14 +8,14 @@
 }
 
 :root {
-    --text-color: #edf3ff;
-    --think-color: #aaaaaad8;
-    --subheading-color: #97a7ca;
-    --placeholder-color: #c3cdde;
-    --primary-color: #101623;
-    --secondary-color: #283045;
-    --secondary-hover-color: #333e58;
-    --scrollbar-color: #626a7f;
+  --text-color: #000000;
+  --think-color: #7c7a7ad8;
+  --subheading-color: #e4d37f;
+  --placeholder-color: #46484c;
+  --primary-color: #efe6bf;
+  --secondary-color: #f9edb9;
+  --secondary-hover-color: #e4d6a5;
+  --scrollbar-color: #edd48b;
 }
 
 /* chat container style */
@@ -296,7 +296,7 @@ table {
 table th,
 table td {
     padding: 10px;
-    border: 1px solid #ddd;
+    border: 1px solid #111111;
     text-align: left;
 }
 

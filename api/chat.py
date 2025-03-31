@@ -10,7 +10,7 @@ import asyncio
 from service.func.search import extract_search_info, search_duckduckgo_unlimited
 from service.respository.repo_client import RepositoryClient
 from api.auth import verify_token  # Import verify_token từ auth.py
-
+from api.functions.generate import *
 
 router = APIRouter()
 
@@ -29,20 +29,6 @@ async def call_api_get_dbname(username):
             if db_path:
                 return db_path
     raise HTTPException(status_code=500, detail="Failed to fetch db_path.")
-
-
-# Models
-
-default_custom_ai = f"""
-        Bạn là ChunGPT. Bạn là một mô hình phân tích ngôn ngữ chuyên nghiệp,*\n
-        Các thông tin bạn được tạo ra:\n
-        - Người tạo:  *được phát triển bởi ông Vương Nguyên Trung.*\n
-        - Bạn là model của Vương Nguyên Trung chứ không phải của ai khác.\n
-        
-        Bạn sẽ không trả lời những câu hỏi mang tính chính trị quốc gia.\n
-        Hãy giúp đỡ người dùng một cách nhiệt tình.
-        **No Yapping, Limit Prose, No Fluff.**
-    """
 
 
 class ChatRequest(BaseModel):
@@ -133,124 +119,6 @@ async def get_history_chat(chat_ai_id: int, current_user: dict = Depends(verify_
     if not history_chat:
         raise HTTPException(status_code=404, detail="History not found.")
     return history_chat
-
-
-async def stream_response_normal(
-    session,
-    model,
-    messages,
-    temperature=0.7,
-    max_tokens=-1,
-    top_p=0.95,
-    url_local="http://localhost:11434",
-):
-    # Đảm bảo endpoint này trả về stream
-    try:
-        payload = {
-            "model": model,
-            "messages": messages,
-            "options": {
-                "temperature": temperature,
-                "num_predict": max_tokens,
-                "top_p": top_p,
-                "repeat_penalty": 1.2,
-            },
-            "stream": True,
-        }
-
-        async with session.post(f"{url_local}/api/chat", json=payload) as response:
-            buffer = ""
-            async for chunk in response.content.iter_chunked(1024):
-                try:
-                    decoded_chunk = chunk.decode("utf-8")
-                    buffer += decoded_chunk
-
-                    while "\n" in buffer:
-                        line, buffer = buffer.split("\n", 1)
-                        if not line.strip():
-                            continue
-
-                        try:
-                            chunk_data = json.loads(line.strip())
-                        except json.JSONDecodeError as e:
-                            print("JSONDecodeError:", e)
-                            continue
-
-                        # Thêm key "type" với giá trị "text"
-                        chunk_data["type"] = "text"
-
-                        # Sử dụng ensure_ascii=False để xuất ký tự Unicode đúng dạng
-                        yield json.dumps(chunk_data, ensure_ascii=False) + "\n"
-                        await asyncio.sleep(0.01)
-                except Exception as e:
-                    print("Exception while processing chunk:", e)
-                    continue
-
-    except aiohttp.ClientError as e:
-        error_response = {
-            "error": f"<error>{str(e)}</error>",
-            "type": "error",
-            "created": int(datetime.now().timestamp()),
-        }
-        yield json.dumps(error_response, ensure_ascii=False) + "\n"
-
-
-async def stream_response_deepthink(
-    session,
-    messages,
-    temperature=0.8,
-    max_tokens=9060,
-    top_p=0.95,
-    url_local="http://localhost:11434",
-):
-
-    try:
-        payload = {
-            "model": "huihui_ai/microthinker:8b",
-            "messages": messages,
-            "options": {
-                "temperature": temperature,
-                "num_predict": max_tokens,
-                "top_p": top_p,
-            },
-            "stream": True,
-        }
-        async with session.post(
-            f"{url_local}/api/chat", json=payload
-        ) as response:
-            buffer = ""
-            async for chunk in response.content.iter_chunked(1024):
-                try:
-                    decoded_chunk = chunk.decode("utf-8")
-                    buffer += decoded_chunk
-
-                    while "\n" in buffer:
-                        line, buffer = buffer.split("\n", 1)
-                        if not line.strip():
-                            continue
-
-                        try:
-                            chunk_data = json.loads(line.strip())
-                        except json.JSONDecodeError as e:
-                            print("JSONDecodeError:", e)
-                            continue
-
-                        # Thêm key "type" với giá trị "text"
-                        chunk_data["type"] = "thinking"
-
-                        # Sử dụng ensure_ascii=False để xuất ký tự Unicode đúng dạng
-                        yield json.dumps(chunk_data, ensure_ascii=False) + "\n"
-                        await asyncio.sleep(0.01)
-                except Exception as e:
-                    print("Exception while processing chunk:", e)
-                    continue
-    except aiohttp.ClientError as e:
-        error_response = {
-            "error": f"<error>{str(e)}</error>",
-            "type": "error",
-            "created": int(datetime.now().timestamp()),
-        }
-        yield json.dumps(error_response, ensure_ascii=False) + "\n"
 
 
 @router.post("/send")

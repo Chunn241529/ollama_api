@@ -11,6 +11,7 @@ from service.func.search import extract_search_info, search_duckduckgo_unlimited
 from service.respository.repo_client import RepositoryClient
 from api.auth import verify_token  # Import verify_token từ auth.py
 from api.functions.generate import *
+from api.functions.deepsearch import *
 
 router = APIRouter()
 
@@ -37,6 +38,7 @@ class ChatRequest(BaseModel):
     chat_ai_id: int = None
     is_deep_think: bool = False
     is_search: bool = False
+    is_deepsearch: bool = False
 
 
 class ManagerChat(BaseModel):
@@ -235,9 +237,8 @@ async def chat_test(chat_request: ChatRequest):
     """
     prompt = chat_request.prompt
     model = chat_request.model
-    chat_ai_id = chat_request.chat_ai_id
     is_deep_think = chat_request.is_deep_think
-    is_search = chat_request.is_search
+    is_deepsearch = chat_request.is_deepsearch
 
     system_prompt = f"""
         *Quan trọng:* Sử dụng ngôn ngữ "Việt Nam" là chủ yếu.
@@ -258,53 +259,7 @@ async def chat_test(chat_request: ChatRequest):
 
     async def generate():
         async with aiohttp.ClientSession() as session:
-            if is_deep_think and is_search:
-                search_results = search_duckduckgo_unlimited(prompt)
-                extracted_info = extract_search_info(search_results)
-                num_results = str(len(search_results))
-
-                yield json.dumps(
-                    {"num_results": num_results, "search_results": search_results}
-                ) + "\n"
-
-                search = f"""
-                    Kết quả tìm kiếm: \n"{extracted_info}"\n Dưa vào kết quả tìm kiếm trên, hãy cung cấp thêm thông tin của website đó.
-                """
-                debate_prompt = f"""
-                    \nHãy mô phỏng quá trình suy nghĩ của con người theo ngôi thứ nhất. Lưu ý: *chỉ cần thực hiện, không cần nhắc lại*.
-                    \nKhông dùng markdown cho câu trả lời.
-        
-                    \nVấn đề của user là: "{prompt}"\n     
-                        
-                    {search}      
-                """
-
-                brain_think.append({"role": "user", "content": debate_prompt})
-
-                deepthink_response = ""  # Tạo biến chứa toàn bộ kết quả
-                async for part in stream_response_deepthink(session, brain_think):
-                    yield part  # Gửi từng phần cho client ngay lập tức
-                    deepthink_response += part  # Gom lại toàn bộ câu trả lời
-
-                brain_answer.append(
-                    {"role": "assistant", "content": deepthink_response}
-                )
-
-                # Chỉ lấy nội dung "content" từ brain_answer
-                content_only = brain_answer[0]["content"]
-
-                refined_prompt = f"""
-                    Hãy giải quyết vấn đề một cách đầy đủ và logic nhất: {content_only}\n            
-                """
-
-                messages.append({"role": "user", "content": refined_prompt})
-                full_response = ""
-                async for part in stream_response_normal(session, model, messages):
-                    yield part
-                    full_response += part
-                messages.append({"role": "assistant", "content": full_response})
-
-            elif is_deep_think:
+            if is_deep_think:
                 debate_prompt = f"""
                     \nVấn đề của user là: "{prompt}"\n     
                 """
@@ -325,7 +280,7 @@ async def chat_test(chat_request: ChatRequest):
 
                 refined_prompt = f"""
                    Dựa vào suy luận: "{content_only}"\n hãy phân tích, tối ưu hóa suy luận để đưa ra câu trả lời logic và tốt nhất.
-=                """
+                """
 
                 messages.append({"role": "user", "content": refined_prompt})
                 full_response = ""
@@ -334,31 +289,21 @@ async def chat_test(chat_request: ChatRequest):
                     full_response += part
                 messages.append({"role": "assistant", "content": full_response})
 
-            elif is_search:
-                keyword =[{"role": "user", "content": f"""Dựa vào {prompt} hãy chuyển đổi thành từ khóa trọng điểm bằng tiếng anh để có thể tìm kiếm thông tin chuẩn trên google"""}]
-                keyword_search = ""
-                async for part in stream_response_normal(session, model, keyword):
-                    yield part
-                    keyword_search += part
-                search_results = search_duckduckgo_unlimited(keyword_search)
-                print(search_results)
-                if search_results:
-                    extracted_info = extract_search_info(search_results)
-                    num_results = str(len(search_results))
+        
+            elif is_deepsearch:
+                # deep_search = ""
+                # async for part in deepsearch(messages, session=session, model=model):
+                #     yield part
+                #     deep_search += part
+                # messages.append({"role": "assistant", "content": deep_search})
 
-                    yield json.dumps(
-                        {"num_results": num_results, "search_results": search_results}
-                    ) + "\n"
-
-                    search = f"""
-                        Kết quả tìm kiếm: \n"{extracted_info}"\n Dưa vào kết quả tìm kiếm trên, hãy cung cấp thêm thông tin của website đó.
-                    """
-                    messages.append({"role": "user", "content": search})
-                    full_response = ""
-                    async for part in stream_response_normal(session, model, messages):
-                        yield part
-                        full_response += part
-                    messages.append({"role": "assistant", "content": full_response})
+                full_response = ""
+                async for chunk in deepsearch(initial_query=messages, session=session, model=model):
+                    # print("Chunk:", chunk.strip())  # Uncomment nếu muốn xem chi tiết từng chunk
+                    chunk_data = json.loads(chunk)
+                    if chunk_data.get("type") == "deepsearch":
+                        full_response += chunk_data["message"]["content"]
+                print(f"\n[DEBUG]: f{full_response}\n")
             else:
 
                 full_response = ""

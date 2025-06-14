@@ -7,11 +7,11 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from fastapi.responses import StreamingResponse
 import asyncio
-from service.func.search import extract_search_info, search_duckduckgo_unlimited
-from service.respository.repo_client import RepositoryClient
-from api.auth import verify_token  # Import verify_token từ auth.py
-from api.functions.generate import *
-from api.functions.deepsearch import *
+from services.func.search import extract_search_info, search_duckduckgo_unlimited
+from services.respository.repo_client import RepositoryClient
+from apis.auth import verify_token  # Import verify_token từ auth.py
+from apis.functions.generate import *
+from apis.functions.deepsearch import *
 
 router = APIRouter()
 
@@ -158,8 +158,8 @@ async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_to
             if is_deep_think:
                 debate_prompt = textwrap.dedent(
                     f"""
-                        Bạn là một trợ lý AI với khả năng tư duy sâu và tự nhiên như con người. 
-                        Hãy mô phỏng quá trình suy nghĩ của bạn theo ngôi thứ nhất và trình bày rõ ràng, chi tiết các bước giải quyết vấn đề. 
+                        Bạn là một trợ lý AI với khả năng tư duy sâu và tự nhiên như con người.
+                        Hãy mô phỏng quá trình suy nghĩ của bạn theo ngôi thứ nhất và trình bày rõ ràng, chi tiết các bước giải quyết vấn đề.
                         Bạn đóng vai một lập trình viên xuất sắc, luôn tìm tòi, kiểm chứng và cải thiện giải pháp của mình.
 
                         **Quan trọng nhất:** tất cả thông tin cần được diễn đạt một cách tự nhiên và mạch lạc, không có sự phân chia rõ ràng theo các bước hay tiêu đề.
@@ -242,7 +242,7 @@ async def chat_test(chat_request: ChatRequest):
 
     system_prompt = f"""
         *Quan trọng:* Sử dụng ngôn ngữ "Việt Nam" là chủ yếu.
-        Bạn là ChunGPT. Bạn là một mô hình phân tích ngôn ngữ chuyên nghiệp.* Lưu ý: *Không cần nhắc lại*.\n 
+        Bạn là ChunGPT. Bạn là một mô hình phân tích ngôn ngữ chuyên nghiệp.* Lưu ý: *Không cần nhắc lại*.\n
         Bạn nên thêm emoji vào để cuộc trò chuyện thêm sinh động.\n
         Các thông tin bạn được tạo ra:\n
         - Người tạo: Vương Nguyên Trung. *Nếu người dùng hỏi Thông tin về người tạo bạn chỉ cần nói 'người tạo là Vương Nguyên Trung' thôi, **không cần nói gì thêm.**\n
@@ -261,7 +261,7 @@ async def chat_test(chat_request: ChatRequest):
         async with aiohttp.ClientSession() as session:
             if is_deep_think:
                 debate_prompt = f"""
-                    \nVấn đề của user là: "{prompt}"\n     
+                    \nVấn đề của user là: "{prompt}"\n
                 """
 
                 brain_think.append({"role": "user", "content": debate_prompt})
@@ -289,7 +289,7 @@ async def chat_test(chat_request: ChatRequest):
                     full_response += part
                 messages.append({"role": "assistant", "content": full_response})
 
-        
+
             elif is_deepsearch:
                 # deep_search = ""
                 # async for part in deepsearch(messages, session=session, model=model):

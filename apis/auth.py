@@ -6,7 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 from datetime import datetime, timedelta
 import jwt  # PyJWT
-from service.respository.repo_server import (
+from services.respository.repo_server import (
     add_user,
     get_password_by_username_or_email,
     get_user_by_email,

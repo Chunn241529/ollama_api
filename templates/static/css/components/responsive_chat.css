@@ -8,14 +8,14 @@
 }
 
 :root {
-  --text-color: #000000;
-  --think-color: #7c7a7ad8;
-  --subheading-color: #e4d37f;
-  --placeholder-color: #46484c;
-  --primary-color: #efe6bf;
-  --secondary-color: #f9edb9;
-  --secondary-hover-color: #e4d6a5;
-  --scrollbar-color: #edd48b;
+    --text-color: #e0e0e0;
+    --think-color: #666666d8;
+    --subheading-color: #bb86fc;
+    --placeholder-color: #888888;
+    --primary-color: #1a1a1a;
+    --secondary-color: #2d2d2d;
+    --secondary-hover-color: #3a3a3a;
+    --scrollbar-color: #666666;
 }
 
 /* Responsive styles */

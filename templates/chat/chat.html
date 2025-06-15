@@ -2,74 +2,75 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
 
 
-  <title>chunGPT</title>
-  <link rel="icon" type="image/png" sizes="32x32" href="templates\static\assets\favicon\favicon.ico" />
+    <title>chunGPT</title>
+    <link rel="icon" type="image/png" sizes="32x32" href="templates\static\assets\favicon\favicon.ico" />
 
-  <link rel="stylesheet"
-    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
 
 
-  <!-- css component -->
-  <link rel="stylesheet" href="/templates/static/css/components/head.css" />
-  <link rel="stylesheet" href="/templates/static/css/components/suggestions.css" />
-  <link rel="stylesheet" href="/templates/static/css/components/chat_container.css" />
-  <link rel="stylesheet" href="/templates/static/css/components/prompt_container.css" />
-  <link rel="stylesheet" href="/templates/static/css/components/iframe.css" />
-  <link rel="stylesheet" href="/templates/static/css/components/search.css" />
-  <link rel="stylesheet" href="/templates/static/css/components/responsive_chat.css" />
-  <link rel="stylesheet" href="/templates/static/css/components/loading_bars.css" />
+    <!-- css component -->
+    <link rel="stylesheet" href="/templates/static/css/components/head.css" />
+    <link rel="stylesheet" href="/templates/static/css/components/suggestions.css" />
+    <link rel="stylesheet" href="/templates/static/css/components/chat_container.css" />
+    <link rel="stylesheet" href="/templates/static/css/components/prompt_container.css" />
+    <link rel="stylesheet" href="/templates/static/css/components/iframe.css" />
+    <link rel="stylesheet" href="/templates/static/css/components/search.css" />
+    <link rel="stylesheet" href="/templates/static/css/components/responsive_chat.css" />
+    <link rel="stylesheet" href="/templates/static/css/components/loading_bars.css" />
 
-  <!-- css main -->
-  <link rel="stylesheet" href="/templates/static/css/chat.css" />
+    <!-- css main -->
+    <link rel="stylesheet" href="/templates/static/css/chat.css" />
 
-  <!-- Thư viện highlight.js -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css" />
-  <link rel="stylesheet"
-    href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/monokai-sublime.min.css" />
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
-  <!-- Thư viện Clipboard.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
+    <!-- Thư viện highlight.js -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/default.min.css" />
+    <link rel="stylesheet"
+        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/monokai-sublime.min.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
 
-  <!-- chạy code python trên trình duyệt -->
-  <!-- <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script> -->
+    <!-- Thư viện Clipboard.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/clipboard.js/2.0.11/clipboard.min.js"></script>
+
+    <!-- chạy code python trên trình duyệt -->
+    <!-- <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script> -->
 
 </head>
 
 <body>
-  <div class="container">
-    <header class="app-header">
-      <h1 class="heading">Xin chào,</h1>
-      <h2 class="sub-heading">Tôi có thể giúp gì cho bạn?</h2>
-    </header>
-    <ul class="suggestions">
-      <li class="suggestions-item">
-        <p class="text">Xây dựng một trang login với UI thật đẹp bằng HTML, CSS, JavaScript.</p>
-        <span class="material-symbols-rounded">draw</span>
-      </li>
-      <li class="suggestions-item">
-        <p class="text">Xây dựng bảng kế hoạch giảm 10kg trong vòng 6 tháng.</p>
-        <span class="material-symbols-rounded">note</span>
-      </li>
-      <li class="suggestions-item">
-        <p class="text">Hãy cho tôi biết tất cả thông tin về bạn và người tạo ra bạn.</p>
-        <span class="material-symbols-rounded">contact_support</span>
-      </li>
-      <li class="suggestions-item">
-        <p class="text">Tôi muốn học tiếng anh giao tiếp trong vòng 3 tháng.</p>
-        <span class="material-symbols-rounded">wysiwyg</span>
-      </li>
-    </ul>
+    <div class="container">
+        <header class="app-header">
+            <h1 class="heading">Xin chào,</h1>
+            <h2 class="sub-heading">Tôi có thể giúp gì cho bạn?</h2>
+        </header>
+        <ul class="suggestions">
+            <li class="suggestions-item">
+                <p class="text">Xây dựng một trang login với UI thật đẹp bằng HTML, CSS, JavaScript.</p>
+                <span class="material-symbols-rounded">draw</span>
+            </li>
+            <li class="suggestions-item">
+                <p class="text">Xây dựng bảng kế hoạch giảm 10kg trong vòng 6 tháng.</p>
+                <span class="material-symbols-rounded">note</span>
+            </li>
+            <li class="suggestions-item">
+                <p class="text">Hãy cho tôi kịch bản truyện tu tiên.</p>
+                <span class="material-symbols-rounded">mood</span>
+            </li>
+            <li class="suggestions-item">
+                <p class="text">Tôi muốn học tiếng anh giao tiếp trong vòng 3 tháng.</p>
+                <span class="material-symbols-rounded">wysiwyg</span>
+            </li>
+        </ul>
 
-    <div class="chats-container">
-      <!-- <div class="message user-message">
+        <div class="chats-container">
+            <!-- <div class="message user-message">
                 <p class="message-text">Lorem ipsum dolor sit, amet consectetur adipisicing elit.
                 </p>
             </div>
@@ -79,57 +80,58 @@
                 </p>
             </div> -->
 
-    </div>
+        </div>
 
 
 
-    <div class="prompt-container">
-      <div class="prompt-wrapper">
-        <form action="#" class="prompt-form">
-          <!-- Textarea nhập nội dung -->
-          <textarea type="text" placeholder="Hỏi chunGPT" class="prompt-input" required></textarea>
+        <div class="prompt-container">
+            <div class="prompt-wrapper">
+                <form action="#" class="prompt-form">
+                    <!-- Textarea nhập nội dung -->
+                    <textarea type="text" placeholder="Hỏi 4T AI" class="prompt-input" required></textarea>
 
-          <!-- Container cho các nút hành động -->
-          <div class="prompt-actions">
-            <!-- Nhóm nút toggle bên trái -->
-            <div class="prompt-actions-left">
-              <button type="button" class="toggle-btn" id="search-toggle">
-                🌐 Tìm kiếm
-              </button>
-              <button type="button" class="toggle-btn" id="deep-think-toggle">
-                💡 Suy luận
-              </button>
+                    <!-- Container cho các nút hành động -->
+                    <div class="prompt-actions">
+                        <!-- Nhóm nút toggle bên trái -->
+                        <div class="prompt-actions-left">
+                            <button type="button" class="toggle-btn" id="search-toggle">
+                                🌐 Nghiên cứu
+                            </button>
+                            <button type="button" class="toggle-btn" id="deep-think-toggle">
+                                💡 Suy luận
+                            </button>
+                        </div>
+                        <!-- Dropdown menu -->
+                        <!-- <select id="deep-think-options" class="dropdown"></select> -->
+
+                        <!-- Nhóm nút khác bên phải -->
+                        <div class="prompt-actions-right">
+                            <button id="add-file-btn" type="button" class="material-symbols-rounded">
+                                attach_file
+                            </button>
+                            <button id="stop-response-btn" type="button" class="material-symbols-rounded">
+                                stop_circle
+                            </button>
+                            <button id="send-prompt-btn" type="submit" class="material-symbols-rounded">
+                                arrow_upward
+                            </button>
+                        </div>
+
+                    </div>
+                </form>
             </div>
-            <!-- Dropdown menu -->
-            <!-- <select id="deep-think-options" class="dropdown"></select> -->
+            <p class="warning-text">Do AI tạo ra, chỉ để tham khảo</p>
 
-            <!-- Nhóm nút khác bên phải -->
-            <div class="prompt-actions-right">
-              <button id="add-file-btn" type="button" class="material-symbols-rounded">
-                attach_file
-              </button>
-              <button id="stop-response-btn" type="button" class="material-symbols-rounded">
-                stop_circle
-              </button>
-              <button id="send-prompt-btn" type="submit" class="material-symbols-rounded">
-                arrow_upward
-              </button>
-            </div>
+        </div>
 
-          </div>
-        </form>
-      </div>
-      <p class="warning-text">Do AI tạo ra, chỉ để tham khảo</p>
-
+        <div class="right-container">
+            <iframe class="right" id="output"></iframe>
+            <button type="button" class="material-symbols-rounded" id="move_selection_left">move_selection_left</button>
+            <button type="button" class="material-symbols-rounded"
+                id="move_selection_right">move_selection_right</button>
+            <button type="button" class="material-symbols-rounded" id="close-iframe">close</button>
+        </div>
     </div>
-
-    <div class="right-container">
-      <iframe class="right" id="output"></iframe>
-      <button type="button" class="material-symbols-rounded" id="move_selection_left">move_selection_left</button>
-      <button type="button" class="material-symbols-rounded" id="move_selection_right">move_selection_right</button>
-      <button type="button" class="material-symbols-rounded" id="close-iframe">close</button>
-    </div>
-  </div>
 </body>
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script></script>

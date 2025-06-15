@@ -218,15 +218,59 @@ argon2-cffi
 PyPDF2
 websocket-client
 requests
+transformers
+qwen_omni_utils
+soundfile
+accelerate
 EOL
     log_info "$MSG_CREATE_REQS"
     SUMMARY+=("Requirements.txt: ${GREEN}${CHECKMARK}${NC}")
 }
 
+create_requirements_comfyui() {
+    show_progress "$MSG_CREATE_REQS" 10
+    cat <<EOL > requirements-comfyui.txt
+comfyui-frontend-package==1.21.7
+comfyui-workflow-templates==0.1.25
+comfyui-embedded-docs==0.2.0
+torch
+torchsde
+torchvision
+torchaudio
+numpy>=1.25.0
+einops
+transformers>=4.28.1
+tokenizers>=0.13.3
+sentencepiece
+safetensors>=0.4.2
+aiohttp>=3.11.8
+yarl>=1.18.0
+pyyaml
+Pillow
+scipy
+tqdm
+psutil
+
+kornia>=0.7.1
+spandrel
+soundfile
+av>=14.2.0
+pydantic~=2.0
+
+EOL
+    log_info "$MSG_CREATE_REQS"
+    SUMMARY+=("Requirements-Comfyui.txt: ${GREEN}${CHECKMARK}${NC}")
+}
+
 # Cài đặt các gói
 install_packages() {
     show_progress "$MSG_INSTALL_REQS" 30
+
     pip install -U -r requirements.txt || { log_error "$MSG_REQS_FAIL"; SUMMARY+=("Packages: ${RED}${CROSS}${NC}"); }
+    log_info "Cài đặt PyTorch..."
+    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
+    pip install -U -r requirements-comfyui.txt || { log_error "$MSG_REQS_FAIL"; SUMMARY+=("Packages: ${RED}${CROSS}${NC}"); }
+
     log_info "$MSG_INSTALL_REQS"
     SUMMARY+=("Packages: ${GREEN}${CHECKMARK}${NC}")
 }
@@ -248,6 +292,10 @@ show_summary() {
         # log_info "$MSG_CLEANUP_REQS"
         rm -f "requirements.txt"
     fi
+    if [ -f "requirements-comfyui.txt" ]; then
+        # log_info "$MSG_CLEANUP_REQS"
+        rm -f "requirements-comfyui.txt"
+    fi
 }
 
 # Thực thi các bước
@@ -257,6 +305,7 @@ check_venv
 activate_venv
 update_pip
 create_requirements
+create_requirements_comfyui
 install_packages
 show_summary
 

@@ -23,6 +23,7 @@
     display: flex;
     gap: 20px;
     flex-direction: column;
+    padding-bottom: 50px; /* Thêm padding bottom để tránh bị prompt-container che */
 }
 
 .chats-container .message {
@@ -60,7 +61,50 @@
     color: var(--text-color);
 }
 
-/* Tiêu đề (Markdown: # H1, ## H2, ### H3) */
+/* Image in message */
+.chats-container .message .message-text .message-image {
+    max-width: 300px;
+    max-height: 400px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
+    margin-top: 10px;
+    display: block;
+    animation: fadeIn 0.5s ease-in-out;
+    cursor: pointer; /* Add cursor to indicate clickable */
+}
+
+/* Download link for image */
+.chats-container .message .message-text .download-image {
+    margin-top: 8px;
+    color: var(--subheading-color);
+    text-decoration: none;
+    font-size: 16px;
+    transition: color 0.3s ease-in-out;
+    position: relative;
+}
+
+.chats-container .message .message-text .download-image:hover {
+    color: #007bff;
+    text-decoration: underline;
+}
+
+.chats-container .message .message-text .download-image:hover::after {
+    content: "Nhấn để tải ảnh về máy";
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--secondary-color);
+    color: var(--text-color);
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+/* Tiêu đề (Markdown: # H1, ## H2, ## H3) */
 .chats-container .message .message-text h1 {
     font-size: 1.5em;
     font-weight: bold;
@@ -142,7 +186,6 @@
     white-space: pre-line;
     font-family: "Itim", serif;
     color: var(--think-color);
-
     display: inline-block;
     vertical-align: middle;
     box-sizing: border-box;
@@ -155,7 +198,7 @@
     align-items: flex-start;
 }
 
-/* Tiêu đề (Markdown: # H1, ## H2, ### H3) */
+/* Tiêu đề (Markdown: # H1, ## H2, ## H3) */
 .chats-container .message .thinking-container .thinking-output h1 {
     font-size: 1.5em;
     font-weight: bold;
@@ -229,7 +272,6 @@
     text-decoration: underline;
 }
 
-
 .chats-container .bot-message {
     margin: 9px auto;
     display: flex;
@@ -249,7 +291,6 @@
     background: var(--secondary-color);
 }
 
-
 .chats-container .bot-message .avatar {
     flex: 0 0 auto;
 }
@@ -265,7 +306,6 @@
     from {
         opacity: 0;
     }
-
     to {
         opacity: 1;
     }
@@ -275,7 +315,6 @@
     animation: fadeIn 0.5s ease-in-out;
     transition: color 0.3s ease-in-out;
 }
-
 
 /* Styles for syntax highlighting */
 code {

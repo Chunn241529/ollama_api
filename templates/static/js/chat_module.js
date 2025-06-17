@@ -15,13 +15,69 @@ const rightContainer = document.querySelector(".right-container");
 const rightElement = document.querySelector(".right");
 const searchOutput = document.querySelector(".search-output");
 const outputIframe = document.getElementById("output");
+const uploadBtn = document.getElementById("upload-btn");
+const uploadDropdown = document.getElementById("upload-dropdown");
+const fileInput = document.getElementById("file-input");
 
 let controller;
 let userMessage = "";
+let messages = [];
 let autoScroll = true;
 let toggle_deepthink = false;
 let toggle_search = false;
 let model_current;
+let lastResultText = ""; // Lưu nội dung text/image_description mới nhất
+let lastResultThinking = ""; // Lưu nội dung thinking mới nhất
+
+// Dropdown toggle
+uploadBtn.addEventListener("click", () => {
+    uploadDropdown.classList.toggle("active");
+});
+
+// Check if input contains image URL or path
+const isImageInput = (text) => {
+    const urlPattern = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))/i;
+    return urlPattern.test(text);
+};
+
+// File input handling for image uploads
+fileInput.addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+            const response = await fetch('/chat/upload_image', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error('Không thể tải lên ảnh');
+            }
+
+            const data = await response.json();
+            userMessage = promptInput.value.trim() || "Mô tả từng chi tiết của hình ảnh.";
+            messages = [{
+                role: "user",
+                content: userMessage,
+                image_url: data.image_url
+            }];
+            promptForm.dispatchEvent(new Event("submit"));
+        } catch (error) {
+            console.error('Lỗi khi tải lên ảnh:', error);
+            showError(error.message);
+        }
+    }
+    uploadDropdown.classList.remove("active");
+});
+
+// Click outside to close dropdown
+document.addEventListener("click", (e) => {
+    if (!uploadBtn.contains(e.target) && !uploadDropdown.contains(e.target)) {
+        uploadDropdown.classList.remove("active");
+    }
+});
 
 // Scroll event to toggle autoScroll
 container.addEventListener("scroll", () => {
@@ -30,9 +86,83 @@ container.addEventListener("scroll", () => {
 });
 
 // Scroll to bottom
-const scrollToBottom = () => {
-    container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+const scrollToBottom = (force = false) => {
+    if (!autoScroll && !force) {
+        return;
+    }
+
+    requestAnimationFrame(() => {
+        const targetScroll = container.scrollHeight - container.clientHeight;
+        const currentScroll = container.scrollTop;
+
+        if (Math.abs(targetScroll - currentScroll) < 2) {
+            container.scrollTop = targetScroll;
+            return;
+        }
+
+        container.scrollTo({
+            top: targetScroll,
+            behavior: currentScroll < targetScroll - 1000 ? 'auto' : 'smooth'
+        });
+    });
 };
+
+// Create scroll indicator
+const scrollIndicator = document.createElement('button');
+scrollIndicator.className = 'scroll-indicator';
+scrollIndicator.innerHTML = '⬇ New messages';
+scrollIndicator.style.cssText = `
+    position: fixed;
+    bottom: 210px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--primary-color);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    display: none;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: opacity 0.3s ease;
+`;
+document.body.appendChild(scrollIndicator);
+
+// Scroll handling utilities
+let isScrolling = false;
+let scrollTimeout = null;
+const SCROLL_THRESHOLD = 100;
+const SCROLL_CHECK_DELAY = 150;
+
+const handleScroll = () => {
+    if (!isScrolling) {
+        isScrolling = true;
+        window.requestAnimationFrame(() => {
+            const scrollPosition = container.scrollTop + container.clientHeight;
+            const nearBottom = container.scrollHeight - scrollPosition <= SCROLL_THRESHOLD;
+
+            autoScroll = nearBottom;
+            scrollIndicator.style.display = autoScroll ? 'none' : 'block';
+            isScrolling = false;
+        });
+    }
+
+    if (scrollTimeout) {
+        clearTimeout(scrollTimeout);
+    }
+    scrollTimeout = setTimeout(() => {
+        isScrolling = false;
+    }, SCROLL_CHECK_DELAY);
+};
+
+container.addEventListener("scroll", handleScroll, { passive: true });
+
+scrollIndicator.addEventListener('click', () => {
+    scrollToBottom(true);
+    scrollIndicator.style.display = 'none';
+    autoScroll = true;
+});
 
 // Horizontal scroll for suggestions
 suggestions.addEventListener("wheel", (event) => {
@@ -66,6 +196,23 @@ const createMsgElement = (content, className) => {
     div.classList.add("message", className);
     div.innerHTML = content;
     return div;
+};
+
+// Show error message
+const showError = (message) => {
+    const errorDiv = document.createElement("div");
+    errorDiv.className = "error-message";
+    errorDiv.style.cssText = `
+        background: #ff4d4d;
+        color: white;
+        padding: 10px;
+        border-radius: 5px;
+        margin: 10px 0;
+        text-align: center;
+    `;
+    errorDiv.textContent = message;
+    chatsContainer.appendChild(errorDiv);
+    scrollToBottom();
 };
 
 // Add copy buttons to code blocks
@@ -115,38 +262,34 @@ const addCopyButtons = (() => {
     };
 })();
 
-// Fetch models on DOM load
-
-// document.addEventListener("DOMContentLoaded", () => {
-//     fetch("http://localhost:2401/chat/get_models_test")
-//         .then((response) => response.json())
-//         .then((data) => {
-//             if (data.models && Array.isArray(data.models)) {
-//                 const dropdown = document.getElementById("deep-think-options");
-//                 data.models.forEach((model, index) => {
-//                     const option = document.createElement("option");
-//                     option.value = model;
-//                     option.textContent = model;
-//                     dropdown.appendChild(option);
-//                     if (index === 0) {
-//                         model_current = model;
-//                         dropdown.value = model;
-//                     }
-//                 });
-//                 console.log("Default model selected:", model_current);
-//                 dropdown.addEventListener("change", (event) => {
-//                     model_current = event.target.value;
-//                     console.log("Model selected:", model_current);
-//                 });
-//             } else {
-//                 console.error("Invalid data format:", data);
-//             }
-//         })
-//         .catch((error) => console.error("Error fetching data:", error));
-// });
+// Save partial response to backend
+const savePartialResponse = async (content, isThinking = false) => {
+    if (!content.trim()) {
+        console.log("No partial content to save");
+        return;
+    }
+    try {
+        const response = await fetch("http://localhost:2401/chat/save_partial", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                content: content,
+                chat_ai_id: 0,
+                is_thinking: isThinking
+            })
+        });
+        if (!response.ok) {
+            throw new Error("Không thể lưu phản hồi dở dang");
+        }
+        console.log(`Saved partial ${isThinking ? "thinking" : "text"} response:`, content.slice(0, 50) + "...");
+    } catch (error) {
+        console.error("Error saving partial response:", error);
+        showError("Không thể lưu phản hồi dở dang");
+    }
+};
 
 // Generate response from API
-const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = false) => {
+const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = false, is_image = false) => {
     const textElement = BotMsgDiv.querySelector(".message-text");
     const thinkingOutput = BotMsgDiv.querySelector(".thinking-output");
     const modelName = BotMsgDiv.querySelector(".modelName");
@@ -154,24 +297,29 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
     controller = new AbortController();
     modelName.textContent = "4T AI";
 
-    const userText = textElement.textContent.toLowerCase();
+    ldsDualRing.style.display = "none";
+
+    const userText = userMessage.toLowerCase();
     const searchKeywords = ["tìm kiếm", "tra cứu", "nghiên cứu", "search"];
     is_search = is_search || searchKeywords.some((keyword) => userText.includes(keyword));
 
-    // Hide loading indicators for the current message
+    const isGeneratingImage = userText.includes("tạo ảnh") || userText.includes("tạo hình ảnh");
+    is_image = is_image || isImageInput(userText);
+
+    textElement.innerHTML = `<span class="loading-bars"><span></span><span></span><span></span></span>`;
     if (is_deep_think) {
         BotMsgDiv.querySelectorAll(".message-text .loading-bars").forEach((lb) => (lb.style.display = "none"));
-    }
-    ldsDualRing.style.display = "none"; // Always hide lds-dual-ring for this message
-
-    if (is_search) {
+        ldsDualRing.style.display = "block";
+    } else if (is_search) {
         searchOutput.style.display = "block";
         moveSelectionRight.style.display = "none";
         moveSelectionLeft.style.display = "none";
+    } else {
+        ldsDualRing.style.display = "none";
     }
 
-    let resultThinking = "";
-    let resultText = "";
+    lastResultThinking = "";
+    lastResultText = "";
     let lastRenderedHTML = "";
     let lastRenderedCSS = "";
     let lastRenderedJS = "";
@@ -185,16 +333,18 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 prompt: userMessage,
+                messages: messages,
                 chat_ai_id: 0,
                 is_deep_think,
                 is_search,
+                is_image,
+                is_generate_image: isGeneratingImage
             }),
             signal: controller.signal,
         });
 
         if (!response.ok) {
-            console.error("Failed to fetch response from API");
-            return;
+            throw new Error("Không thể kết nối với API chat.");
         }
 
         const reader = response.body.getReader();
@@ -211,67 +361,80 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
 
             for (const line of lines) {
                 if (!line.trim()) continue;
-
                 try {
                     const jsonData = JSON.parse(line);
-                    const content = jsonData.message?.content || "";
-
-                    if (jsonData.num_results) {
-                        num_search = jsonData.num_results;
-                        search_results = jsonData.search_results;
-                        if (search_results !== lastRenderedSearch) {
-                            lastRenderedSearch = search_results;
-                            await renderSearch(search_results);
-                        }
-                        searchOutput.textContent = `Tìm được ${num_search} kết quả`;
-                    }
-
                     if (jsonData.type === "thinking") {
-                        resultThinking += content;
+                        lastResultThinking += jsonData.message?.content || "";
                         thinkingOutput.style.borderLeft = "2px solid var(--think-color)";
-                        thinkingOutput.innerHTML = marked.parse(resultThinking);
-                    } else if (jsonData.type === "text") {
-                        resultText += content;
-                        textElement.innerHTML = marked.parse(resultText);
+                        thinkingOutput.innerHTML = marked.parse(lastResultThinking);
+                    } else if (jsonData.type === "text" || jsonData.type === "image_description") {
+                        lastResultText += jsonData.message?.content || "";
+                        textElement.innerHTML = marked.parse(lastResultText);
+                    } else if (jsonData.type === "image") {
+                        const imageBase64 = jsonData.image_base64;
+                        const mimeType = jsonData.mime_type || "image/png";
+                        const imageSrc = `data:${mimeType};base64,${imageBase64}`;
+
+                        console.log("Image chunk received:", { imageBase64: imageBase64.slice(0, 50) + "...", mimeType });
+
+                        textElement.innerHTML = `
+                            <div class="image-message">
+                                <img src="${imageSrc}" class="message-image" alt="Ảnh được tạo" style="max-width: 100%; height: auto; cursor: pointer;">
+                            </div>
+                        `;
+
+                        addImageClickHandler(textElement, imageSrc, mimeType);
+                    } else if (jsonData.type === "error") {
+                        console.error("API error:", jsonData.error || jsonData.message);
+                        showError(jsonData.error || jsonData.message || "Failed to process the request.");
                     }
                 } catch (e) {
                     console.error("JSON parse error:", e);
                 }
+
+                const htmlContent = extractHTML(lastResultText);
+                const cssContent = extractCSS(lastResultText);
+                const jsContent = extractJavaScript(lastResultText);
+
+                if (htmlContent !== lastRenderedHTML || cssContent !== lastRenderedCSS || jsContent !== lastRenderedJS) {
+                    lastRenderedHTML = htmlContent;
+                    lastRenderedCSS = cssContent;
+                    lastRenderedJS = jsContent;
+                    closeIframe.style.display = "block";
+                    rightContainer.classList.add("active");
+                    await renderCodeHtml(lastResultText);
+                    rightElement.classList.toggle("fullscreen", jsContent.trim().length > 0);
+                }
+
+                hljs.highlightAll();
+                addCopyButtons();
+                if (autoScroll) scrollToBottom();
             }
-
-            const htmlContent = extractHTML(resultText);
-            const cssContent = extractCSS(resultText);
-            const jsContent = extractJavaScript(resultText);
-
-            if (htmlContent !== lastRenderedHTML || cssContent !== lastRenderedCSS || jsContent !== lastRenderedJS) {
-                lastRenderedHTML = htmlContent;
-                lastRenderedCSS = cssContent;
-                lastRenderedJS = jsContent;
-                closeIframe.style.display = "block";
-                rightContainer.classList.add("active");
-                await renderCodeHtml(resultText);
-                rightElement.classList.toggle("fullscreen", jsContent.trim().length > 0);
-            }
-
-            hljs.highlightAll();
-            addCopyButtons();
-            if (autoScroll) scrollToBottom();
         }
 
         if (buffer.trim()) {
             try {
                 const jsonData = JSON.parse(buffer);
-                const content = jsonData.message?.content || "";
-                if (jsonData.num_results) {
-                    num_search = jsonData.num_results;
-                    searchOutput.textContent = `Tìm được ${num_search} kết quả`;
-                }
                 if (jsonData.type === "thinking") {
-                    resultThinking += content;
-                    thinkingOutput.innerHTML = marked.parse(resultThinking);
-                } else if (jsonData.type === "text") {
-                    resultText += content;
-                    textElement.innerHTML = marked.parse(resultText);
+                    lastResultThinking += jsonData.message?.content || "";
+                    thinkingOutput.innerHTML = marked.parse(lastResultThinking);
+                } else if (jsonData.type === "text" || jsonData.type === "image_description") {
+                    lastResultText += jsonData.message?.content || "";
+                    textElement.innerHTML = marked.parse(lastResultText);
+                } else if (jsonData.type === "image") {
+                    const imageBase64 = jsonData.image_base64;
+                    const mimeType = jsonData.mime_type || "image/png";
+                    const imageSrc = `data:${mimeType};base64,${imageBase64}`;
+
+                    textElement.innerHTML = `
+                        <div class="image-message">
+                            <img src="${imageSrc}" class="message-image" alt="Ảnh được tạo" style="max-width: 100%; height: auto; cursor: pointer;">
+                        </div>
+                    `;
+
+                    addImageClickHandler(textElement, imageSrc, mimeType);
+                } else if (jsonData.type === "error") {
+                    showError(jsonData.error || jsonData.message || "Failed to process the request.");
                 }
             } catch (e) {
                 console.error("JSON parse error on final buffer:", e);
@@ -281,6 +444,20 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
         hljs.highlightAll();
         addCopyButtons();
         if (autoScroll) scrollToBottom();
+    } catch (error) {
+        if (error.name === "AbortError") {
+            console.log("Response aborted by user");
+            // Lưu phản hồi dở dang
+            if (lastResultThinking.trim()) {
+                await savePartialResponse(lastResultThinking, true);
+            }
+            if (lastResultText.trim()) {
+                await savePartialResponse(lastResultText, false);
+            }
+        } else {
+            console.error("Error in generateResponse:", error);
+            showError(error.message);
+        }
     } finally {
         stopResponseBtn.style.display = "none";
         sendPromptBtn.style.display = "block";
@@ -288,10 +465,17 @@ const generateResponse = async (BotMsgDiv, is_deep_think = false, is_search = fa
 };
 
 // Stop response
-stopResponseBtn.addEventListener("click", () => {
+stopResponseBtn.addEventListener("click", async () => {
     controller?.abort();
     stopResponseBtn.style.display = "none";
     sendPromptBtn.style.display = "block";
+    // Lưu phản hồi dở dang ngay khi nhấn Stop
+    if (lastResultThinking.trim()) {
+        await savePartialResponse(lastResultThinking, true);
+    }
+    if (lastResultText.trim()) {
+        await savePartialResponse(lastResultText, false);
+    }
 });
 
 // Hide suggestions and header
@@ -301,59 +485,85 @@ const hideSuggestion = (e, suggestion = "none", header = "none") => {
 };
 
 // Handle form submission
-const handleFormSubmit = (e) => {
+const handleFormSubmit = async (e) => {
     e.preventDefault();
     hideSuggestion(e);
     userMessage = promptInput.value.trim();
     if (!userMessage) return;
 
-    const userMsgHTML = `<p class="message-text"></p>`;
-    const userMsgDiv = createMsgElement(userMsgHTML, "user-message");
-    userMsgDiv.querySelector(".message-text").textContent = userMessage;
-    chatsContainer.appendChild(userMsgDiv);
+    try {
+        const imageResult = await processImageInput(userMessage);
 
-    promptInput.value = "";
-    promptInput.style.height = "77px";
-    stopResponseBtn.style.display = "block";
-    sendPromptBtn.style.display = "none";
+        const userMsgHTML = `<div class="message-text"></div>`;
+        const userMsgDiv = createMsgElement(userMsgHTML, "user-message");
+        userMsgDiv.querySelector(".message-text").innerHTML = marked.parse(userMessage);
 
-    setTimeout(() => {
-        const BotMsgHTML = `
-            <img src="templates/static/assets/img/1.jpg" alt="" class="avatar"><p class="modelName"></p>
-            <button type="button" class="search-output" id="search">
-                <svg class="search-icon" viewBox="0 0 24 24" width="24" height="24">
-                    <path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
-                </svg>
-            </button>
-            <div class="thinking-container">
-                <p class="thinking-output"></p>
-                <span class="lds-dual-ring"></span>
-            </div>
-            <p class="message-text">
-                <span class="loading-bars"><span></span><span></span><span></span></span>
-                <span class="loading-bars"><span></span><span></span></span>
-            </p>
-        `;
-        const BotMsgDiv = createMsgElement(BotMsgHTML, "bot-message");
-        chatsContainer.appendChild(BotMsgDiv);
-
-        document.getElementById("search").addEventListener("click", () => {
-            closeIframe.style.display = "block";
-            rightContainer.classList.add("active");
+        userMsgDiv.querySelectorAll('pre code').forEach((block) => {
+            hljs.highlightElement(block);
         });
+        chatsContainer.appendChild(userMsgDiv);
 
-        if (toggle_search && toggle_deepthink) {
-            generateResponse(BotMsgDiv, true, true);
-        } else if (toggle_search) {
-            generateResponse(BotMsgDiv, false, true);
-        } else if (toggle_deepthink) {
-            generateResponse(BotMsgDiv, true, false);
-        } else {
-            generateResponse(BotMsgDiv, false, false);
-        }
-        autoScroll = true;
-        if (autoScroll) scrollToBottom();
-    }, 600);
+        promptInput.value = "";
+        promptInput.style.height = "77px";
+        stopResponseBtn.style.display = "block";
+        sendPromptBtn.style.display = "none";
+
+        setTimeout(() => {
+            const BotMsgHTML = `
+                <img src="templates/static/assets/img/1.jpg" alt="" class="avatar"><p class="modelName"></p>
+                <button type="button" class="search-output" id="search">
+                    <svg class="search-icon" viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 0 0 1.48-5.34c-.47-2.78-2.79-5-5.59-5.34a6.505 6.505 0 0 0-7.27 7.27c.34 2.8 2.56 5.12 5.34 5.59a6.5 6.5 0 0 0 5.34-1.48l.27.28v.79l4.25 4.25c.41.41 1.08.41 1.49 0 .41-.41.41-1.08 0-1.49L15.5 14zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                    </svg>
+                </button>
+                <div class="thinking-container">
+                    <p class="thinking-output"></p>
+                    <span class="lds-dual-ring"></span>
+                </div>
+                <p class="message-text">
+                    <span class="loading-bars"><span></span><span></span><span></span></span>
+                </p>
+            `;
+            const BotMsgDiv = createMsgElement(BotMsgHTML, "bot-message");
+            chatsContainer.appendChild(BotMsgDiv);
+
+            document.getElementById("search").addEventListener("click", () => {
+                closeIframe.style.display = "block";
+                rightContainer.classList.add("active");
+            });
+
+            messages = [];
+
+            if (imageResult.isImage) {
+                messages.push({
+                    role: "user",
+                    content: imageResult.description,
+                    image_url: imageResult.image_url
+                });
+                generateResponse(BotMsgDiv, false, false, true);
+            } else {
+                messages.push({
+                    role: "user",
+                    content: userMessage
+                });
+
+                if (toggle_search && toggle_deepthink) {
+                    generateResponse(BotMsgDiv, true, true);
+                } else if (toggle_search) {
+                    generateResponse(BotMsgDiv, false, true);
+                } else if (toggle_deepthink) {
+                    generateResponse(BotMsgDiv, true, false);
+                } else {
+                    generateResponse(BotMsgDiv, false, false);
+                }
+            }
+
+            autoScroll = true;
+            if (autoScroll) scrollToBottom();
+        }, 600);
+    } catch (error) {
+        showError(error.message);
+    }
 };
 
 // Form submission and keydown handling
@@ -380,8 +590,17 @@ promptInput.addEventListener("keydown", (e) => {
 suggestions.addEventListener("click", (e) => {
     const item = e.target.closest(".suggestions-item");
     if (item) {
-        promptInput.value = item.querySelector(".text").textContent;
-        promptForm.dispatchEvent(new Event("submit"));
+        const text = item.querySelector(".text").textContent;
+        promptInput.value = "";
+
+        let i = 0;
+        const interval = setInterval(() => {
+            promptInput.value += text[i];
+            i++;
+            if (i >= text.length) {
+                clearInterval(interval);
+            }
+        }, 10);
     }
 });
 
@@ -390,9 +609,87 @@ document.addEventListener("click", ({ target }) => {
     const wrapper = document.querySelector(".prompt-wrapper");
     const shouldHide = target.classList.contains("prompt-input") ||
         (wrapper.classList.contains("hide-controls") &&
-        (target.id === "add-file-btn" || target.id === "stop-response-btn"));
+        (target.id === "upload-btn" || target.id === "stop-response-btn"));
     wrapper.classList.toggle("hide-controls", shouldHide);
 });
+
+// Add CSS for dropdown
+const style = document.createElement("style");
+style.textContent = `
+    .dropdown {
+        position: relative;
+        display: inline-block;
+    }
+    .dropdown-toggle {
+        background: transparent;
+        border: none;
+        color: var(--text-color);
+        padding: 8px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+    }
+    .dropdown-menu {
+        display: none;
+        position: absolute;
+        background: var(--secondary-color);
+        border-radius: 5px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+        min-width: 120px;
+        top: 100%;
+        left: 0;
+    }
+    .dropdown-menu.active {
+        display: block;
+    }
+    .dropdown-item {
+        display: block;
+        padding: 8px 12px;
+        color: var(--text-color);
+        text-decoration: none;
+        cursor: pointer;
+    }
+    .dropdown-item:hover {
+        background: var(--secondary-hover-color);
+    }
+`;
+document.head.appendChild(style);
+
+// Check if input contains image URL and process it
+const processImageInput = async (text) => {
+    const urlPattern = /(https?:\/\/[^\s]+\.(jpg|jpeg|png|gif|webp))/i;
+    const match = text.match(urlPattern);
+
+    if (match) {
+        try {
+            const imageUrl = match[0];
+            const description = text.replace(imageUrl, "").trim() || "Mô tả từng chi tiết của hình ảnh.";
+            return {
+                isImage: true,
+                image_url: imageUrl,
+                description: description
+            };
+        } catch (error) {
+            console.error("Error processing image URL:", error);
+            throw new Error("Không thể tải ảnh từ URL này. Vui lòng thử URL khác hoặc tải ảnh trực tiếp.");
+        }
+    }
+
+    const filePattern = /file:\/\/[^\s]+/i;
+    const fileMatch = text.match(filePattern);
+    if (fileMatch) {
+        const filePath = fileMatch[0];
+        const description = text.replace(filePath, "").trim() || "Mô tả từng chi tiết của hình ảnh.";
+        return {
+            isImage: true,
+            image_url: filePath,
+            description: description
+        };
+    }
+
+    return { isImage: false };
+};
 
 // Code extraction functions
 const extractHTML = (response) => {
@@ -534,3 +831,119 @@ moveSelectionRight.addEventListener("click", () => {
 moveSelectionLeft.addEventListener("click", () => {
     rightElement.classList.add("fullscreen");
 });
+
+// Handle image click to view in full screen
+const addImageClickHandler = (container, imageSrc, mimeType) => {
+    const fileExt = mimeType.split("/")[1];
+    container.querySelector(".message-image")?.addEventListener("click", () => {
+        const imageIframeHTML = `
+            <html>
+                <head>
+                    <style>
+                        :root {
+                            --text-color: #edf3ff;
+                            --secondary-color: #283045;
+                            --secondary-hover-color: #333e58;
+                        }
+                        body {
+                            margin: 0;
+                            padding: 0;
+                            display: flex;
+                            justify-content: center;
+                            align-items: center;
+                            height: 100vh;
+                            background: rgba(0, 0, 0, 0.7);
+                            backdrop-filter: blur(5px);
+                        }
+                        .image-container {
+                            position: relative;
+                            max-width: 90%;
+                            max-height: 90%;
+                        }
+                        img {
+                            max-width: 100%;
+                            max-height: 100%;
+                            object-fit: contain;
+                        }
+                        .download-btn {
+                            position: absolute;
+                            top: 10px;
+                            right: 10px;
+                            background: var(--secondary-hover-color);
+                            color: var(--text-color);
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-family: 'Itim', sans-serif;
+                        }
+                        .download-btn:hover {
+                            background: var(--secondary-color);
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="image-container">
+                        <img src="${imageSrc}" alt="Ảnh được tạo/xử lý">
+                        <a href="${imageSrc}" download="generated_image.${fileExt}" class="download-btn">Tải ảnh</a>
+                    </div>
+                </body>
+            </html>
+        `;
+        const blob = new Blob([imageIframeHTML], { type: "text/html" });
+        const blobURL = URL.createObjectURL(blob);
+        const imageIframe = document.createElement("iframe");
+        imageIframe.id = "imageIframe";
+        imageIframe.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+            z-index: 1000;
+        `;
+        document.body.appendChild(imageIframe);
+        imageIframe.src = blobURL;
+
+        const closeImageIframe = document.createElement("button");
+        closeImageIframe.innerHTML = `<i class="material-symbols-rounded">close</i>`;
+        closeImageIframe.style.cssText = `
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background: var(--secondary-hover-color);
+            color: var(--text-color);
+            border: none;
+            padding: 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            z-index: 1001;
+        `;
+        document.body.appendChild(closeImageIframe);
+        closeImageIframe.addEventListener("click", () => {
+            document.body.removeChild(imageIframe);
+            document.body.removeChild(closeImageIframe);
+            URL.revokeObjectURL(blobURL);
+        });
+    });
+};
+
+const imageStyles = document.createElement("style");
+imageStyles.textContent = `
+    .image-message {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        max-width: 100%;
+        gap: 8px;
+    }
+    .image-message img {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        transition: transform 0.2s ease;
+    }
+    .image-message img:hover {
+        transform: scale(1.02);
+    }
+`;
+document.head.appendChild(imageStyles);

@@ -10,6 +10,7 @@ from routes.auth import router as auth_router
 from routes.chat import router as chat_router
 from config.settings import CORS_SETTINGS
 
+
 def delete_pycache(root_dir):
     """Remove all __pycache__ directories."""
     for dirpath, dirnames, _ in os.walk(root_dir):
@@ -23,6 +24,7 @@ app.add_middleware(CORSMiddleware, **CORS_SETTINGS)
 app.include_router(auth_router)
 app.include_router(chat_router)
 app.mount("/templates/static", StaticFiles(directory="templates/static"), name="templates/static")
+app.mount("/storage", StaticFiles(directory="/home/nguyentrung/Documents/ollama_api/storage"), name="storage")
 
 templates = Jinja2Templates(directory="templates")
 

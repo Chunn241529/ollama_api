@@ -1,0 +1,78 @@
+/* Dropdown styles */
+.prompt-actions-right {
+    position: relative;  /* Để dropdown-menu định vị theo div này */
+}
+
+#upload-btn {
+    font-size: 1.4rem;
+}
+
+.dropdown-menu {
+    position: absolute;
+    bottom: 55px;
+    left: -37.5px;  /* Để căn giữa với icon */
+    width: 120px;
+    background: var(--primary-color);
+    border: 1px solid var(--secondary-color);
+    border-radius: 8px;
+    padding: 8px 12px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.3);
+    display: none;
+    z-index: 1000;
+    font-size: 0.9rem;
+}
+
+/* Mũi tên chỉ xuống icon */
+.dropdown-menu::after {
+    content: '';
+    position: absolute;
+    bottom: -6px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 12px;
+    height: 12px;
+    background: var(--primary-color);
+    border-right: 1px solid var(--secondary-color);
+    border-bottom: 1px solid var(--secondary-color);
+    transform-origin: center;
+    transform: translateX(-50%) rotate(45deg);
+}
+
+.dropdown-menu.show {
+    display: block;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.dropdown-item {
+    display: block;
+    width: 100%;
+    padding: 8px;
+    color: var(--text-color);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border-radius: 4px;
+    background: var(--primary-color);
+    white-space: nowrap;
+    text-align: left;
+}
+
+.dropdown-item:hover {
+    background: var(--secondary-color);
+    transform: translateX(2px);
+}
+
+.dropdown-item:hover {
+    background: var(--secondary-hover-color);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

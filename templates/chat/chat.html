@@ -14,20 +14,8 @@
 
     <link rel="stylesheet"
         href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0" />
-
-
-    <!-- css component -->
-    <link rel="stylesheet" href="/templates/static/css/components/head.css" />
-    <link rel="stylesheet" href="/templates/static/css/components/suggestions.css" />
-    <link rel="stylesheet" href="/templates/static/css/components/chat_container.css" />
-    <link rel="stylesheet" href="/templates/static/css/components/prompt_container.css" />
-    <link rel="stylesheet" href="/templates/static/css/components/iframe.css" />
-    <link rel="stylesheet" href="/templates/static/css/components/search.css" />
-    <link rel="stylesheet" href="/templates/static/css/components/responsive_chat.css" />
-    <link rel="stylesheet" href="/templates/static/css/components/loading_bars.css" />
-
-    <!-- css main -->
-    <link rel="stylesheet" href="/templates/static/css/chat.css" />
+    <!-- Main CSS file that includes all components -->
+    <link rel="stylesheet" href="/templates/static/css/main.css" />
 
 
     <!-- Thư viện highlight.js -->
@@ -52,8 +40,8 @@
         </header>
         <ul class="suggestions">
             <li class="suggestions-item">
-                <p class="text">Xây dựng một trang login với UI thật đẹp bằng HTML, CSS, JavaScript.</p>
-                <span class="material-symbols-rounded">draw</span>
+                <p class="text">Bạn có thể làm gì cho tôi?</p>
+                <span class="material-symbols-rounded">wysiwyg</span>
             </li>
             <li class="suggestions-item">
                 <p class="text">Xây dựng bảng kế hoạch giảm 10kg trong vòng 6 tháng.</p>
@@ -64,8 +52,8 @@
                 <span class="material-symbols-rounded">mood</span>
             </li>
             <li class="suggestions-item">
-                <p class="text">Tôi muốn học tiếng anh giao tiếp trong vòng 3 tháng.</p>
-                <span class="material-symbols-rounded">wysiwyg</span>
+                <p class="text">Tạo hình ảnh 1 con mèo.</p>
+                <span class="material-symbols-rounded">draw</span>
             </li>
         </ul>
 
@@ -85,6 +73,9 @@
 
 
         <div class="prompt-container">
+            <div class="image-preview-container">
+                <!-- Image previews will be added here dynamically -->
+            </div>
             <div class="prompt-wrapper">
                 <form action="#" class="prompt-form">
                     <!-- Textarea nhập nội dung -->
@@ -106,9 +97,16 @@
 
                         <!-- Nhóm nút khác bên phải -->
                         <div class="prompt-actions-right">
-                            <button id="add-file-btn" type="button" class="material-symbols-rounded">
+                            <button type="button" class="material-symbols-rounded" id="upload-btn">
                                 attach_file
                             </button>
+                            <div class="dropdown-menu" id="upload-dropdown">
+                                <label class="dropdown-item">
+                                    Tải tệp lên
+                                    <input type="file" id="file-input" accept="image/*" style="display: none;">
+                                </label>
+                            </div>
+
                             <button id="stop-response-btn" type="button" class="material-symbols-rounded">
                                 stop_circle
                             </button>
@@ -132,11 +130,24 @@
             <button type="button" class="material-symbols-rounded" id="close-iframe">close</button>
         </div>
     </div>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script></script>
+    <script type="module" src="/templates/static/js/chat_module.js"></script>
+
+    <script>
+        // Đăng ký Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/templates/static/js/sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful');
+                    })
+                    .catch(err => {
+                        console.log('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
 </body>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script></script>
-<script type="module" src="/templates/static/js/chat_module.js"></script>
-
-
 
 </html>

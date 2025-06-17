@@ -336,7 +336,7 @@ def get_non_human_payload(positive_prompt, width=768, height=1024):
             "3": {
                 "inputs": {
                     "seed": random_13_digits(),
-                    "steps": 60,
+                    "steps": 40,
                     "cfg": 7,
                     "sampler_name": "dpmpp_sde",
                     "scheduler": "karras",
@@ -400,8 +400,8 @@ def get_non_human_payload(positive_prompt, width=768, height=1024):
             "18": {
                 "inputs": {
                     "lora_name": "Detail-Slider.safetensors",
-                    "strength_model": 1,
-                    "strength_clip": 1,
+                    "strength_model": 0.8000000000000002,
+                    "strength_clip": 0.8000000000000002,
                     "model": ["4", 0],
                     "clip": ["4", 1]
                 },

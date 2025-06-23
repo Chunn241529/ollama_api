@@ -335,7 +335,7 @@ table {
 table th,
 table td {
     padding: 10px;
-    border: 1px solid #111111;
+    border: 1px solid var(--text-color);
     text-align: left;
 }
 

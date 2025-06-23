@@ -12,8 +12,8 @@ import shutil
 from datetime import datetime
 
 import requests
-from services.generate import stream_response_normal
-from config.payload_img import get_human_payload, get_non_human_payload
+from services.chat import stream_response_normal
+from config.payload_img import get_payload
 
 # Configure logging (DEBUG level for full trace)
 logging.basicConfig(
@@ -34,19 +34,22 @@ def random_13_digits():
 
 
 async def generate_prompt(
-    simple_prompt, model="gemma3:4b-it-qat", temperature=0.4, max_attempts=3
+    simple_prompt, model="gemma3:12b-it-q4_K_M", temperature=0.4, max_attempts=3
 ):
-    """Generate an enhanced prompt using Ollama."""
-    prompt_instruction = (
-        f"Dựa trên ý tưởng sau: '{simple_prompt}'. "
-        "Tạo một prompt chi tiết và phong phú cho việc tạo ảnh bằng Stable Diffusion. "
-        "Prompt phải phù hợp với phong cách photorealistic. "
-        "Luôn đính kèm thêm prompt đồ họa sau (RAW photo, subject, 8k uhd, dslr, soft lighting, high quality, film grain, Fujifilm XT3) "
-        "và bao gồm các chi tiết mô tả rõ ràng về chủ thể, bối cảnh, ánh sáng, và cảm xúc. "
-        "Đầu ra chỉ bao gồm prompt <= 512 tokens, không giải thích thêm."
-    )
-    messages = [{"role": "user", "content": prompt_instruction}]
+    """Generate an enhanced prompt using Ollama, with an extra step to analyze the idea in English first."""
 
+    prompt_instruction = f"""
+        Dựa trên yêu cầu: '{simple_prompt}'.
+        Tạo một positive prompt chi tiết để vẽ hình ảnh sử dụng model Pony, tập trung vào đối tượng chính của ý tưởng.
+        Positive prompt rõ ràng các đặc điểm của đối tượng chính bao gồm hình dáng, màu sắc, kích thước, tư thế, và phong cách nghệ thuật (ví dụ: anime, fantasy, 2d, 3d, chi tiết cao).
+        Chỉ thêm bối cảnh hoặc môi trường nếu nó làm nổi bật đối tượng chính, tránh đưa vào các yếu tố không liên quan (như phong cảnh nếu ý tưởng chỉ nói về đối tượng).
+        Xác định tâm trạng (ví dụ: hùng vĩ, bí ẩn, dữ tợn) và ánh sáng (ví dụ: rực rỡ, mờ ảo) để tăng tính hấp dẫn.
+        Nếu yêu cầu ngắn gọn hoặc không rõ ràng, suy ra chi tiết hợp lý nhưng vẫn bám sát ý tưởng gốc.
+        Positive prompt phải ngắn gọn, tối đa 300 token, nhưng đầy đủ để tạo hình ảnh chất lượng cao.
+        Trả về một JSON với các trường: {{'positive_prompt': str, 'width': int, 'height': int}}.
+     """
+
+    messages = [{"role": "user", "content": prompt_instruction}]
     async with aiohttp.ClientSession() as session:
         for attempt in range(max_attempts):
             try:
@@ -81,8 +84,30 @@ async def generate_prompt(
                 if not full_response.strip():
                     logger.warning("No content received from stream_response_normal")
                     continue
-                logger.info("Generated prompt: %s", full_response)
-                return full_response.strip()
+                # Log raw response for debugging
+                # logger.debug("Raw response: %r", full_response)
+                # Clean the response: remove BOM, control characters, and extra whitespace
+                cleaned_response = full_response.strip()
+                cleaned_response = cleaned_response.replace('\ufeff', '')  # Remove BOM
+                cleaned_response = re.sub(r'[\x00-\x1F\x7F]', '', cleaned_response)  # Remove control characters
+                # Try to extract JSON using regex if direct parsing fails
+                json_match = re.search(r'\{.*?\}', cleaned_response, re.DOTALL)
+                if json_match:
+                    cleaned_response = json_match.group(0)
+                    # logger.debug("Extracted JSON-like string: %s", cleaned_response)
+                # Try to parse the cleaned response as JSON
+                try:
+                    response_json = json.loads(cleaned_response)
+                    if not isinstance(response_json, dict) or not all(
+                        key in response_json for key in ["positive_prompt", "width", "height"]
+                    ):
+                        logger.error("Response is not in expected JSON format: %s", cleaned_response)
+                        continue
+                    # logger.info("Generated prompt JSON: %s", response_json)
+                    return response_json
+                except json.JSONDecodeError as e:
+                    logger.error("Failed to parse cleaned response as JSON: %s, error: %s", cleaned_response, e)
+                    continue
             except Exception as e:
                 logger.error(
                     "Failed to generate prompt (attempt %d/%d): %s",
@@ -91,8 +116,24 @@ async def generate_prompt(
                     e,
                 )
                 if attempt == max_attempts - 1:
-                    return None
-    return None
+                    # Fallback to default values if all attempts fail
+                    logger.warning("All attempts failed, returning default prompt")
+                    return {
+                        "positive_prompt": (
+                            f"(score_9,score_8_up,score_7_up), {simple_prompt}"
+                        ),
+                        "width": 768,
+                        "height": 1024
+                    }
+    # Fallback if all attempts fail
+    logger.error("Failed to generate prompt after %d attempts", max_attempts)
+    return {
+        "positive_prompt": (
+            f"(score_9,score_8_up,score_7_up), {simple_prompt}"
+        ),
+        "width": 768,
+        "height": 1024
+    }
 
 
 async def generate_image(prompt_text="", width=768, height=1024, output_dir="ComfyUI"):
@@ -112,34 +153,27 @@ async def generate_image(prompt_text="", width=768, height=1024, output_dir="Com
     url = "http://127.0.0.1:8188/api/prompt"
     base_url = "http://localhost:2401"  # Base URL cho image_url
 
-    # Generate positive prompt using Ollama
-    positive_prompt = await generate_prompt(prompt_text)
-    if positive_prompt is None:
-        logger.error("Failed to generate positive prompt.")
-        return {"error": "Failed to generate positive prompt."}
+    # Generate prompt using Ollama
+    prompt_data = await generate_prompt(prompt_text)
+    if prompt_data is None:
+        logger.error("Failed to generate prompt data.")
+        return {"error": "Failed to generate prompt data."}
 
-    # Check if prompt contains "girl", "man", or "woman" (case-insensitive)
-    human_keywords = ["girl", "man", "woman"]
-    is_human_prompt = any(
-        keyword in positive_prompt.lower() for keyword in human_keywords
-    )
-    logger.info("Prompt contains human keywords: %s", is_human_prompt)
+    # Extract values from prompt_data
+    positive_prompt = prompt_data.get("positive_prompt")
+    width = prompt_data.get("width", width)  # Use provided width as fallback
+    height = prompt_data.get("height", height)  # Use provided height as fallback
 
-    # Get payloads
-    human_payload = get_human_payload(
+    if not positive_prompt:
+        logger.error("No positive prompt extracted from response.")
+        return {"error": "No positive prompt extracted from response."}
+
+    # Get payload
+    payload = get_payload(
         positive_prompt=positive_prompt,
         width=width,
         height=height,
     )
-    non_human_payload = get_non_human_payload(
-        positive_prompt=positive_prompt,
-        width=width,
-        height=height,
-    )
-
-    # Select payload based on prompt content
-    payload = human_payload if is_human_prompt else non_human_payload
-    logger.info("Payload sent to ComfyUI: %s", json.dumps(payload, indent=2))
 
     async with aiohttp.ClientSession() as session:
         try:
@@ -229,7 +263,7 @@ async def generate_image(prompt_text="", width=768, height=1024, output_dir="Com
                         storage_path = os.path.join(STORAGE_OUTPUT_DIR, new_filename)
 
                         # Copy the image to storage
-                        shutil.copy2(latest_image, storage_path)
+                        shutil.move(latest_image, storage_path)
                         logger.info("Image copied to storage: %s", storage_path)
 
                         # Đặt quyền tệp

@@ -2,12 +2,12 @@ import subprocess
 import textwrap
 import json
 import logging
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.responses import StreamingResponse, FileResponse
 import aiohttp
 from models.chat import ChatRequest, SavePartialRequest
 from dependencies.auth import verify_token, call_api_get_dbname
-from services.generate import (
+from services.chat import (
     stream_response_normal,
     stream_response_deepthink,
     stream_response_deepsearch,
@@ -23,6 +23,8 @@ from services.deepsearch import deepsearch
 import os
 import re
 import base64
+import shutil
+from pathlib import Path
 
 # Configure logging
 logging.basicConfig(
@@ -55,6 +57,39 @@ def extract_image_info(prompt):
                 description = "Mô tả từng chi tiết của hình ảnh."
             return parts[1].strip(), description
     return None, None
+
+async def classify_user_intent(prompt):
+    """Dùng AI để phân loại ý định user: image, code, hay normal."""
+    system_prompt = (
+        "Bạn là một AI phân loại yêu cầu của người dùng. "
+        "Hãy trả lời duy nhất một từ trong các lựa chọn sau: 'image', 'code', 'normal'.\n"
+        "Nếu người dùng muốn tạo ảnh, trả lời 'image'.\n"
+        "Nếu người dùng muốn tạo code, trả lời 'code'.\n"
+        "Nếu là trò chuyện thông thường, trả lời 'normal'.\n"
+        "Chỉ trả về đúng 1 từ, không giải thích gì thêm.\n"
+    )
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": prompt}
+    ]
+    try:
+        async with aiohttp.ClientSession() as session:
+            async for chunk in stream_response_normal(
+                session=session,
+                model=DEFAULT_CUSTOM_AI,
+                messages=messages,
+                storage=TEST_STORAGE
+            ):
+                try:
+                    chunk_data = json.loads(chunk)
+                    content = chunk_data.get("message", {}).get("content", "").strip().lower()
+                    if content in ["image", "code", "normal"]:
+                        return content
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return None
 
 @router.post("/send")
 async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_token)):
@@ -284,8 +319,7 @@ async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_to
             except Exception as e:
                 error_msg = f"Unexpected error: {str(e)}"
                 yield json.dumps({"error": error_msg, "type": "error"}, ensure_ascii=False)
-            finally:
-                await session.close()
+            # KHÔNG gọi await session.close() ở đây
 
     return StreamingResponse(generate(), media_type="text/plain")
 
@@ -297,26 +331,41 @@ async def chat_test(chat_request: ChatRequest):
     is_deep_think = chat_request.is_deep_think
     is_deepsearch = chat_request.is_deepsearch
 
+    # Dùng AI để phân loại ý định user (không truyền session vào)
+    user_intent = await classify_user_intent(prompt)
+    prompt_lower = prompt.lower().strip()
+    if user_intent == "image":
+        is_image = True
+        is_code = False
+    elif user_intent == "code":
+        is_image = False
+        is_code = True
+    elif user_intent == "normal":
+        is_image = False
+        is_code = False
+    else:
+        # fallback: logic cũ
+        image_prefixes = [
+            "tạo ảnh", "tạo hình ảnh", "vẽ ảnh", "generate image", "create image", "draw image"
+        ]
+        is_image = any(prompt_lower.startswith(prefix) for prefix in image_prefixes)
+        is_code = any(kw in prompt_lower for kw in ["code", "mã nguồn", "lập trình", "viết chương trình", "python", "javascript", "html", "css", "c++", "java", "golang", "typescript"])
+    is_normal = not is_image and not is_code
+
+    # Model selection
+    if is_code:
+        selected_model = "qwen2.5-coder:14b-instruct"
+    elif is_image:
+        selected_model = None  # handled by generate_image
+    else:
+        selected_model = model or DEFAULT_CUSTOM_AI
+
     async def generate():
         async with aiohttp.ClientSession() as session:
             try:
                 image_source, image_text = extract_image_info(prompt)
-                if image_source:
-                    messages = [{
-                        "role": "user",
-                        "content": image_text,
-                        "images": [image_source]
-                    }]
-                    async for chunk in stream_response_image(
-                        session=session,
-                        model="qwen2.5vl:7b",
-                        messages=messages,
-                        storage=TEST_STORAGE
-                    ):
-                        if isinstance(chunk, bytes):
-                            chunk = chunk.decode('utf-8')
-                        yield chunk
-                elif "tạo ảnh" in prompt.lower() or "tạo hình ảnh" in prompt.lower():
+                if is_image:
+                    # Use generate_image for image requests
                     from services.img import generate_image
                     result = await generate_image(prompt_text=prompt)
                     if "image_path" in result and "mime_type" in result:
@@ -349,7 +398,26 @@ async def chat_test(chat_request: ChatRequest):
                             "type": "error",
                             "message": result.get("error", "Failed to generate image")
                         }, ensure_ascii=False).encode("utf-8")
+                elif is_code:
+                    messages = [{"role": "system", "content": DEFAULT_CUSTOM_AI}]
+                    history = await TEST_STORAGE.get_history()
+                    history = await summarize_chat_history(
+                        session=session,
+                        history=history,
+                        max_history_length=10,
+                        storage=TEST_STORAGE
+                    )
+                    messages.extend(history)
+                    messages.append({"role": "user", "content": prompt})
+                    async for chunk in stream_response_normal(
+                        session=session,
+                        model=selected_model,
+                        messages=messages,
+                        storage=TEST_STORAGE
+                    ):
+                        yield chunk
                 elif is_deep_think:
+                    logger.debug(f"Processing deepthink request with prompt: {prompt}")
                     messages = [{"role": "system", "content": DEFAULT_THINK_AI}]
                     history = await TEST_STORAGE.get_history()
                     history = await summarize_chat_history(
@@ -369,6 +437,7 @@ async def chat_test(chat_request: ChatRequest):
                     ):
                         try:
                             chunk_data = json.loads(chunk)
+                            logger.debug(f"Deepthink chunk sent: {chunk_data}")
                             if chunk_data.get("message", {}).get("content"):
                                 response_content += chunk_data["message"]["content"]
                         except json.JSONDecodeError:
@@ -385,7 +454,7 @@ async def chat_test(chat_request: ChatRequest):
                     messages.append({"role": "user", "content": refined_prompt})
                     async for chunk in stream_response_normal(
                         session=session,
-                        model=model,
+                        model=selected_model,
                         messages=messages,
                         storage=TEST_STORAGE
                     ):
@@ -405,11 +474,12 @@ async def chat_test(chat_request: ChatRequest):
                     async for chunk in deepsearch(
                         messages=messages,
                         session=session,
-                        model=model,
+                        model=selected_model,
                         storage=TEST_STORAGE
                     ):
                         yield chunk
                 else:
+                    # Normal chat
                     messages = [{"role": "system", "content": DEFAULT_CUSTOM_AI}]
                     history = await TEST_STORAGE.get_history()
                     history = await summarize_chat_history(
@@ -423,7 +493,7 @@ async def chat_test(chat_request: ChatRequest):
                     messages.append({"role": "user", "content": prompt})
                     async for chunk in stream_response_normal(
                         session=session,
-                        model=model,
+                        model=selected_model,
                         messages=messages,
                         storage=TEST_STORAGE
                     ):
@@ -439,8 +509,6 @@ async def chat_test(chat_request: ChatRequest):
                     "type": "error",
                     "message": f"Unexpected error: {str(e)}"
                 }, ensure_ascii=False).encode("utf-8")
-            finally:
-                await session.close()
 
     return StreamingResponse(generate(), media_type="text/plain")
 
@@ -520,6 +588,7 @@ async def process_image(request: dict):
             status_code=500,
             detail=f"Lỗi xử lý ảnh: {str(e)}"
         )
+
 @router.post("/save_partial")
 async def save_partial_response(request: SavePartialRequest):
     try:
@@ -530,3 +599,15 @@ async def save_partial_response(request: SavePartialRequest):
     except Exception as e:
         logger.error(f"Error in save_partial_response: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/upload_image")
+async def upload_image(file: UploadFile = File(...)):
+    """Nhận file upload từ client, lưu vào thư mục tạm và trả về đường dẫn."""
+    import shutil
+    from pathlib import Path
+    upload_dir = Path("storage/uploaded_files")
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    file_path = upload_dir / file.filename
+    with file_path.open("wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    return {"file_path": str(file_path)}

@@ -8,7 +8,7 @@ import json
 
 # from api.functions.generate import *
 
-from services.generate import *
+from services.chat import *
 
 history_analys = []
 

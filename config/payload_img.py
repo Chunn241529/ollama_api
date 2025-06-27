@@ -14,7 +14,7 @@ def get_payload(positive_prompt, width=720, height=1024):
                     "seed": random_13_digits(),
                     "steps": 40,
                     "cfg": 7,
-                    "sampler_name": "dpmpp_2m",
+                    "sampler_name": "dpmpp_3m_sde",
                     "scheduler": "karras",
                     "denoise": 1,
                     "model": ["4", 0],
@@ -131,7 +131,7 @@ def get_payload(positive_prompt, width=720, height=1024):
                             ],
                             "outputs": [{"label": "Tiềm ẩn", "name": "LATENT", "type": "LATENT", "slot_index": 0, "links": [7]}],
                             "properties": {"cnr_id": "comfy-core", "ver": "0.3.18", "Node name for S&R": "KSampler"},
-                            "widgets_values": [random_13_digits(), "randomize", 40, 7, "dpmpp_2m", "karras", 1]
+                            "widgets_values": [random_13_digits(), "randomize", 40, 7, "dpmpp_3m_sde", "karras", 1]
                         },
                         {
                             "id": 8,

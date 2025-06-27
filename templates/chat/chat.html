@@ -52,7 +52,7 @@
                 <span class="material-symbols-rounded">mood</span>
             </li>
             <li class="suggestions-item">
-                <p class="text">Tạo hình ảnh 1 con mèo.</p>
+                <p class="text">Tạo hình ảnh 1 cô gái cyberpunk.</p>
                 <span class="material-symbols-rounded">draw</span>
             </li>
         </ul>
@@ -73,8 +73,8 @@
 
 
         <div class="prompt-container">
-            <div class="image-preview-container">
-                <!-- Image previews will be added here dynamically -->
+            <div class="image-preview-container" id="image-preview-container">
+                <!-- Image/file previews will be added here dynamically -->
             </div>
             <div class="prompt-wrapper">
                 <form action="#" class="prompt-form">
@@ -93,20 +93,17 @@
                             </button>
                         </div>
                         <!-- Dropdown menu -->
-                        <!-- <select id="deep-think-options" class="dropdown"></select> -->
-
-                        <!-- Nhóm nút khác bên phải -->
                         <div class="prompt-actions-right">
-                            <button type="button" class="material-symbols-rounded" id="upload-btn">
+                            <button type="button" class="material-symbols-rounded attach-btn" id="upload-btn">
                                 attach_file
                             </button>
-                            <div class="dropdown-menu" id="upload-dropdown">
+                            <div class="dropdown-menu custom-dropdown" id="upload-dropdown">
                                 <label class="dropdown-item">
-                                    Tải tệp lên
+                                    <span class="dropdown-icon material-symbols-rounded">image</span>
+                                    <span>Tải ảnh lên</span>
                                     <input type="file" id="file-input" accept="image/*" style="display: none;">
                                 </label>
                             </div>
-
                             <button id="stop-response-btn" type="button" class="material-symbols-rounded">
                                 stop_circle
                             </button>
@@ -114,12 +111,10 @@
                                 arrow_upward
                             </button>
                         </div>
-
                     </div>
                 </form>
             </div>
             <p class="warning-text">Do AI tạo ra, chỉ để tham khảo</p>
-
         </div>
 
         <div class="right-container">

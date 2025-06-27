@@ -24,7 +24,7 @@ const uploadBtn = document.getElementById("upload-btn");
 const uploadDropdown = document.getElementById("upload-dropdown");
 const attachBtn = document.getElementById("attach-file-btn");
 const fileInput = document.getElementById("file-input");
-const filePreviewList = document.querySelector(".file-preview-list");
+const imagePreviewContainer = document.getElementById("image-preview-container");
 
 let controller = new AbortController();
 let userMessage = "";
@@ -172,7 +172,10 @@ const formSubmitParams = {
     rightElement
 };
 
-promptForm.addEventListener("submit", (e) => {
+// Gộp toàn bộ logic submit vào 1 listener duy nhất, đảm bảo controller đồng bộ
+promptForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (controller) controller.abort(); // Dừng request cũ nếu còn
     controller = new AbortController();
     formSubmitParams.controller = controller;
     formSubmitParams.toggle_deepthink = deepThinkToggle.classList.contains("active");
@@ -180,8 +183,36 @@ promptForm.addEventListener("submit", (e) => {
     autoScroll = true;
     formSubmitParams.autoScroll = autoScroll;
     scrollIndicator.style.display = 'none';
+
+    // Nếu có file đính kèm, upload trước rồi gửi chat
+    if (attachedFiles.length > 0) {
+        const uploadedFileInfos = [];
+        for (const file of attachedFiles) {
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const response = await fetch('/chat/upload_image', {
+                    method: 'POST',
+                    body: formData
+                });
+                if (!response.ok) throw new Error('Không thể tải lên file');
+                const data = await response.json();
+                uploadedFileInfos.push(data.file_path);
+            } catch (error) {
+                showError(error.message, chatsContainer, () => scrollToBottom(true));
+                return;
+            }
+        }
+        // Gửi chat kèm thông tin file (tuỳ backend xử lý)
+        formSubmitParams.attachedFiles = uploadedFileInfos;
+    } else {
+        formSubmitParams.attachedFiles = [];
+    }
     handleFormSubmit(e, formSubmitParams);
     scrollToBottom(true);
+    // Sau khi gửi, reset file
+    attachedFiles = [];
+    renderFilePreviews();
 });
 
 promptInput.addEventListener("keydown", (e) => {
@@ -257,85 +288,63 @@ moveSelectionLeft.addEventListener("click", () => {
     rightElement.classList.add("fullscreen");
 });
 
+// Hàm render preview file (chỉ hỗ trợ ảnh, có thể mở rộng cho file khác)
+function renderFilePreviews() {
+    imagePreviewContainer.innerHTML = "";
+    attachedFiles.forEach((file, idx) => {
+        const previewDiv = document.createElement("div");
+        previewDiv.className = "file-preview-item";
+        if (file.type.startsWith("image/")) {
+            const img = document.createElement("img");
+            img.className = "file-preview-img";
+            img.alt = file.name;
+            img.title = file.name;
+            img.style.maxWidth = "60px";
+            img.style.maxHeight = "60px";
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            previewDiv.appendChild(img);
+        } else {
+            const icon = document.createElement("span");
+            icon.className = "material-symbols-rounded file-preview-icon";
+            icon.textContent = "insert_drive_file";
+            previewDiv.appendChild(icon);
+            const name = document.createElement("span");
+            name.className = "file-preview-name";
+            name.textContent = file.name;
+            previewDiv.appendChild(name);
+        }
+        // Nút xóa file
+        const removeBtn = document.createElement("button");
+        removeBtn.className = "remove-file-btn";
+        removeBtn.type = "button";
+        removeBtn.title = "Xóa file";
+        removeBtn.innerHTML = '<span class="material-symbols-rounded">close</span>';
+        removeBtn.onclick = () => {
+            attachedFiles.splice(idx, 1);
+            renderFilePreviews();
+        };
+        previewDiv.appendChild(removeBtn);
+        imagePreviewContainer.appendChild(previewDiv);
+    });
+    imagePreviewContainer.style.display = attachedFiles.length ? "flex" : "none";
+}
+
 document.addEventListener("DOMContentLoaded", function() {
     const attachBtn = document.getElementById("attach-file-btn");
     const fileInput = document.getElementById("file-input");
-    const filePreviewList = document.querySelector(".file-preview-list");
-    let attachedFiles = [];
+    // let attachedFiles = []; // Đã khai báo ở ngoài
 
-    if (attachBtn && fileInput && filePreviewList) {
+    if (attachBtn && fileInput) {
         attachBtn.addEventListener("click", () => fileInput.click());
-
         fileInput.addEventListener("change", (e) => {
             for (const file of e.target.files) {
                 attachedFiles.push(file);
             }
-            renderFilePreview();
-            fileInput.value = ""; // reset input
+            renderFilePreviews();
         });
     }
-
-    function renderFilePreview() {
-        filePreviewList.innerHTML = "";
-        attachedFiles.forEach((file, idx) => {
-            const item = document.createElement("div");
-            item.className = "file-preview-item";
-            item.innerHTML = `
-                <span class="file-icon">📄</span>
-                <span class="file-name">${file.name}</span>
-                <button class="remove-file-btn" title="Xóa file" data-idx="${idx}">&times;</button>
-            `;
-            filePreviewList.appendChild(item);
-        });
-        // Xử lý xóa file
-        filePreviewList.querySelectorAll(".remove-file-btn").forEach(btn => {
-            btn.onclick = (e) => {
-                const idx = +btn.dataset.idx;
-                attachedFiles.splice(idx, 1);
-                renderFilePreview();
-            };
-        });
-    }
-
-    // --- Gửi chat kèm file upload nếu có ---
-    promptForm.addEventListener("submit", async (e) => {
-        controller = new AbortController();
-        formSubmitParams.controller = controller;
-        formSubmitParams.toggle_deepthink = deepThinkToggle.classList.contains("active");
-        formSubmitParams.toggle_search = searchToggle.classList.contains("active");
-        autoScroll = true;
-        formSubmitParams.autoScroll = autoScroll;
-        scrollIndicator.style.display = 'none';
-
-        // Nếu có file đính kèm, upload trước rồi gửi chat
-        if (attachedFiles.length > 0) {
-            const uploadedFileInfos = [];
-            for (const file of attachedFiles) {
-                const formData = new FormData();
-                formData.append('file', file);
-                try {
-                    const response = await fetch('/chat/upload_image', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    if (!response.ok) throw new Error('Không thể tải lên file');
-                    const data = await response.json();
-                    uploadedFileInfos.push(data.file_path);
-                } catch (error) {
-                    showError(error.message, chatsContainer, () => scrollToBottom(true));
-                    e.preventDefault();
-                    return;
-                }
-            }
-            // Gửi chat kèm thông tin file (tuỳ backend xử lý)
-            formSubmitParams.attachedFiles = uploadedFileInfos;
-        } else {
-            formSubmitParams.attachedFiles = [];
-        }
-        handleFormSubmit(e, formSubmitParams);
-        scrollToBottom(true);
-        // Sau khi gửi, reset file preview
-        attachedFiles = [];
-        renderFilePreview();
-    });
 });

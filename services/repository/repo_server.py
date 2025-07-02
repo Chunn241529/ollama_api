@@ -2,54 +2,10 @@ import os
 import sqlite3
 from werkzeug.security import generate_password_hash, check_password_hash
 from typing import List, Optional
+from services.repository.db.db_client import create_database_client
 
 # Tên database chính
 db_name = "server.sqlite3"
-
-
-def create_database_client(db_name):
-    # Đường dẫn đến file database
-    db_file = f"storage/database_client/{db_name}"
-
-    # Kiểm tra nếu file database tồn tại
-    if os.path.exists(db_file):
-        return f"Database '{db_name}' đã tồn tại. Không cần tạo mới."
-
-    # Kết nối đến cơ sở dữ liệu SQLite (hoặc tạo mới nếu chưa có)
-    conn = sqlite3.connect(db_file)
-    cursor = conn.cursor()
-
-    # Tạo bảng chat_ai
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS chat_ai (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            custom_ai TEXT,             
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-        """
-    )
-
-    # Tạo bảng brain_history_chat
-    cursor.execute(
-        """
-        CREATE TABLE IF NOT EXISTS brain_history_chat (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chat_ai_id INTEGER,  -- Khóa ngoại tham chiếu đến bảng chat_ai
-            role TEXT,         
-            content TEXT,      
-            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (chat_ai_id) REFERENCES chat_ai (id)
-        )
-        """
-    )
-
-    # Lưu thay đổi và đóng kết nối
-    conn.commit()
-    conn.close()
-
-    return os.path.join(db_file).replace("\\", "/")
-
 
 # Database service
 def get_db_cursor():

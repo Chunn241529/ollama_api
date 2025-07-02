@@ -63,6 +63,9 @@ export const generateResponse = async (
     if (is_deep_think) {
         BotMsgDiv.querySelectorAll(".message-text .loading-bars").forEach((lb) => (lb.style.display = "none"));
         thinkingOutput.style.display = "block";
+        // Hiển thị loading trong quá trình chờ dữ liệu
+        thinkingOutput.innerHTML = `<span class="loading-bars"><span></span><span></span><span></span></span>`;
+        BotMsgDiv.querySelector(".thinking-container").style.display = "block";
     } else {
         thinkingOutput.style.display = "none";
         BotMsgDiv.querySelector(".thinking-container").style.display = "none";
@@ -122,9 +125,13 @@ export const generateResponse = async (
                 if (!line.trim()) continue;
                 try {
                     const jsonData = JSON.parse(line);
-                    if (jsonData.type === "thinking" && is_deep_think) {
+                    if (jsonData.type === "thinking") {
+                        // Xóa loading khi có dữ liệu thực sự
+                        if (thinkingOutput.innerHTML.includes("loading-bars")) thinkingOutput.innerHTML = "";
                         localLastResultThinking += jsonData.message?.content || "";
                         thinkingOutput.innerHTML = marked.parse(localLastResultThinking);
+                        thinkingOutput.style.display = "block";
+                        BotMsgDiv.querySelector(".thinking-container").style.display = "block";
                     } else if (jsonData.type === "text" || jsonData.type === "image_description") {
                         localLastResultText += jsonData.message?.content || "";
                         textElement.innerHTML = marked.parse(localLastResultText);
@@ -173,9 +180,12 @@ export const generateResponse = async (
         if (buffer.trim()) {
             try {
                 const jsonData = JSON.parse(buffer);
-                if (jsonData.type === "thinking" && is_deep_think) {
+                if (jsonData.type === "thinking") {
+                    if (thinkingOutput.innerHTML.includes("loading-bars")) thinkingOutput.innerHTML = "";
                     localLastResultThinking += jsonData.message?.content || "";
                     thinkingOutput.innerHTML = marked.parse(localLastResultThinking);
+                    thinkingOutput.style.display = "block";
+                    BotMsgDiv.querySelector(".thinking-container").style.display = "block";
                 } else if (jsonData.type === "text" || jsonData.type === "image_description") {
                     localLastResultText += jsonData.message?.content || "";
                     textElement.innerHTML = marked.parse(localLastResultText);

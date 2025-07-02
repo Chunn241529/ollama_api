@@ -24,7 +24,6 @@ const uploadBtn = document.getElementById("upload-btn");
 const uploadDropdown = document.getElementById("upload-dropdown");
 const attachBtn = document.getElementById("attach-file-btn");
 const fileInput = document.getElementById("file-input");
-const imagePreviewContainer = document.getElementById("image-preview-container");
 
 let controller = new AbortController();
 let userMessage = "";
@@ -212,7 +211,6 @@ promptForm.addEventListener("submit", async (e) => {
     scrollToBottom(true);
     // Sau khi gửi, reset file
     attachedFiles = [];
-    renderFilePreviews();
 });
 
 promptInput.addEventListener("keydown", (e) => {
@@ -288,51 +286,6 @@ moveSelectionLeft.addEventListener("click", () => {
     rightElement.classList.add("fullscreen");
 });
 
-// Hàm render preview file (chỉ hỗ trợ ảnh, có thể mở rộng cho file khác)
-function renderFilePreviews() {
-    imagePreviewContainer.innerHTML = "";
-    attachedFiles.forEach((file, idx) => {
-        const previewDiv = document.createElement("div");
-        previewDiv.className = "file-preview-item";
-        if (file.type.startsWith("image/")) {
-            const img = document.createElement("img");
-            img.className = "file-preview-img";
-            img.alt = file.name;
-            img.title = file.name;
-            img.style.maxWidth = "60px";
-            img.style.maxHeight = "60px";
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(file);
-            previewDiv.appendChild(img);
-        } else {
-            const icon = document.createElement("span");
-            icon.className = "material-symbols-rounded file-preview-icon";
-            icon.textContent = "insert_drive_file";
-            previewDiv.appendChild(icon);
-            const name = document.createElement("span");
-            name.className = "file-preview-name";
-            name.textContent = file.name;
-            previewDiv.appendChild(name);
-        }
-        // Nút xóa file
-        const removeBtn = document.createElement("button");
-        removeBtn.className = "remove-file-btn";
-        removeBtn.type = "button";
-        removeBtn.title = "Xóa file";
-        removeBtn.innerHTML = '<span class="material-symbols-rounded">close</span>';
-        removeBtn.onclick = () => {
-            attachedFiles.splice(idx, 1);
-            renderFilePreviews();
-        };
-        previewDiv.appendChild(removeBtn);
-        imagePreviewContainer.appendChild(previewDiv);
-    });
-    imagePreviewContainer.style.display = attachedFiles.length ? "flex" : "none";
-}
-
 document.addEventListener("DOMContentLoaded", function() {
     const attachBtn = document.getElementById("attach-file-btn");
     const fileInput = document.getElementById("file-input");
@@ -344,7 +297,6 @@ document.addEventListener("DOMContentLoaded", function() {
             for (const file of e.target.files) {
                 attachedFiles.push(file);
             }
-            renderFilePreviews();
         });
     }
 });

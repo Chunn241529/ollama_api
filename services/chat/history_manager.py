@@ -137,7 +137,7 @@ async def summarize_chat_history(
         async for chunk in stream_response_history(
             session=session,
             messages=summary_prompt,
-            model="gemma3:4b-it-qat",
+            model="4T-Small:latest",
             temperature=0.3,
             max_tokens=-1,
             url_local=url_local,

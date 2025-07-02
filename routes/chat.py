@@ -1,3 +1,5 @@
+
+
 import subprocess
 import textwrap
 import json
@@ -5,7 +7,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Depends, UploadFile, File
 from fastapi.responses import StreamingResponse, FileResponse
 import aiohttp
-from models.chat import ChatRequest, SavePartialRequest
+from models.chat import ChatRequest, SavePartialRequest, ManagerChat
 from dependencies.auth import verify_token, call_api_get_dbname
 from services.chat import (
     stream_response_normal,
@@ -16,9 +18,10 @@ from services.chat import (
     ListHistoryStorage,
     summarize_chat_history
 )
+from services.chat.chat_stream import classify_user_intent
 from services.repository.repo_client import RepositoryClient
 from services.func.search import extract_search_info, search_duckduckgo_unlimited
-from config.settings import DEFAULT_CUSTOM_AI, DEFAULT_THINK_AI
+from config.settings import DEFAULT_CUSTOM_AI
 from services.deepsearch import deepsearch
 import os
 import re
@@ -58,38 +61,58 @@ def extract_image_info(prompt):
             return parts[1].strip(), description
     return None, None
 
-async def classify_user_intent(prompt):
-    """Dùng AI để phân loại ý định user: image, code, hay normal."""
-    system_prompt = (
-        "Bạn là một AI phân loại yêu cầu của người dùng. "
-        "Hãy trả lời duy nhất một từ trong các lựa chọn sau: 'image', 'code', 'normal'.\n"
-        "Nếu người dùng muốn tạo ảnh, trả lời 'image'.\n"
-        "Nếu người dùng muốn tạo code, trả lời 'code'.\n"
-        "Nếu là trò chuyện thông thường, trả lời 'normal'.\n"
-        "Chỉ trả về đúng 1 từ, không giải thích gì thêm.\n"
-    )
-    messages = [
-        {"role": "system", "content": system_prompt},
-        {"role": "user", "content": prompt}
-    ]
-    try:
-        async with aiohttp.ClientSession() as session:
-            async for chunk in stream_response_normal(
-                session=session,
-                model=DEFAULT_CUSTOM_AI,
-                messages=messages,
-                storage=TEST_STORAGE
-            ):
-                try:
-                    chunk_data = json.loads(chunk)
-                    content = chunk_data.get("message", {}).get("content", "").strip().lower()
-                    if content in ["image", "code", "normal"]:
-                        return content
-                except Exception:
-                    continue
-    except Exception:
-        pass
-    return None
+
+import threading
+
+@router.post("/create_chat")
+async def create_chat(current_user: dict = Depends(verify_token)):
+    """Tạo một chat mới, trả về chat_id. Name mặc định rỗng, sẽ được AI đặt sau khi user gửi tin nhắn đầu tiên."""
+    username = current_user["username"]
+    db_path = await call_api_get_dbname(username)
+    repo = RepositoryClient(db_path)
+    chat_id = repo.insert_chat_ai(name="", custom_ai="")
+    if not chat_id:
+        raise HTTPException(status_code=500, detail="Failed to create new chat session")
+    return {"chat_ai_id": chat_id}
+
+
+def trigger_ai_set_chat_name(chat_id, prompt, system_ai, repo):
+    import threading
+    def set_chat_name(chat_id, prompt):
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        async def ai_name():
+            try:
+                async with aiohttp.ClientSession() as session:
+                    ai_messages = [
+                        {"role": "system", "content": "Đặt một tên ngắn gọn, ý nghĩa cho đoạn hội thoại này, không giải thích"},
+                        {"role": "user", "content": prompt}
+                    ]
+                    async for chunk in stream_response_normal(
+                        session=session,
+                        model="4T-Small:latest",
+                        messages=ai_messages,
+                        storage=None,  # Không cần lưu lịch sử cho việc đặt tên
+                    ):
+                        try:
+                            chunk_data = json.loads(chunk)
+                            content = chunk_data.get("message", {}).get("content", "").strip()
+                            if content:
+                                repo.update_chat(chat_id, content, system_ai)
+                                break
+                        except Exception:
+                            continue
+            except Exception as e:
+                logger.error(f"AI đặt tên chat lỗi: {e}")
+        if loop.is_running():
+            asyncio.ensure_future(ai_name())
+        else:
+            loop.run_until_complete(ai_name())
+    threading.Thread(target=set_chat_name, args=(chat_id, prompt), daemon=True).start()
 
 @router.post("/send")
 async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_token)):
@@ -112,214 +135,176 @@ async def chat(chat_request: ChatRequest, current_user: dict = Depends(verify_to
     custom_ai = repo.get_custom_chat_ai_by_id(chat_ai_id)
     if not custom_ai:
         raise HTTPException(status_code=404, detail=f"Custom AI for chat_ai_id {chat_ai_id} not found")
-    custom_ai_text = custom_ai[0]
+    custom_ai_text = custom_ai[0] if isinstance(custom_ai, (list, tuple)) else custom_ai
 
-    image_source, image_text = extract_image_info(prompt)
+    # Dùng AI để phân loại ý định user (không truyền session vào)
+    user_intent = await classify_user_intent(prompt)
+    prompt_lower = prompt.lower().strip()
+    if user_intent == "image":
+        is_image = True
+        is_code = False
+    elif user_intent == "code":
+        is_image = False
+        is_code = True
+    elif user_intent == "normal":
+        is_image = False
+        is_code = False
+    else:
+        # fallback: logic cũ
+        image_prefixes = [
+            "tạo ảnh", "tạo hình ảnh", "vẽ ảnh", "generate image", "create image", "draw image"
+        ]
+        is_image = any(prompt_lower.startswith(prefix) for prefix in image_prefixes)
+        is_code = any(kw in prompt_lower for kw in ["code", "mã nguồn", "lập trình", "viết chương trình", "python", "javascript", "html", "css", "c++", "java", "golang", "typescript"])
+    is_normal = not is_image and not is_code
+
+    # Model selection
+    if is_code:
+        selected_model = "4T-Coder:latest"
+    elif is_image:
+        selected_model = None  # handled by generate_image
+    else:
+        selected_model = model or DEFAULT_CUSTOM_AI
 
     async def generate():
-        async with aiohttp.ClientSession(
-            connector=aiohttp.TCPConnector(limit=100, ttl_dns_cache=300),
-            timeout=aiohttp.ClientTimeout(total=60, connect=10)
-        ) as session:
+        async with aiohttp.ClientSession() as session:
             try:
-                if image_source:
-                    messages = [{
-                        "role": "user",
-                        "content": image_text,
-                        "images": [image_source]
-                    }]
-                    response_content = ""
-                    async for chunk in stream_response_image(
-                        session=session,
-                        model=model,
-                        messages=messages,
-                        storage=storage,
-                        chat_ai_id=chat_ai_id
-                    ):
-                        if isinstance(chunk, bytes):
-                            chunk = chunk.decode('utf-8')
+                image_source, image_text = extract_image_info(prompt)
+                if is_image:
+                    from services.img import generate_image
+                    result = await generate_image(prompt_text=prompt)
+                    if "image_path" in result and "mime_type" in result:
                         try:
-                            chunk_data = json.loads(chunk)
-                            if chunk_data.get("message", {}).get("content"):
-                                response_content += chunk_data["message"]["content"]
-                        except json.JSONDecodeError:
-                            pass
-                        yield chunk
-                    if response_content:
-                        await storage.add_message("assistant", response_content, chat_ai_id)
-                elif is_deep_think:
-                    messages = [{"role": "system", "content": custom_ai_text}]
+                            async with session.post(
+                                "http://localhost:2401/chat/process_image",
+                                json={"file_path": result["image_path"]}
+                            ) as response:
+                                if response.status != 200:
+                                    logger.error("Failed to convert image to base64: %s", response.status)
+                                    yield json.dumps({
+                                        "type": "error",
+                                        "message": f"Failed to convert image to base64: {response.status}"
+                                    }, ensure_ascii=False).encode("utf-8")
+                                else:
+                                    base64_data = await response.json()
+                                    yield json.dumps({
+                                        "type": "image",
+                                        "image_base64": base64_data["base64"],
+                                        "mime_type": result["mime_type"]
+                                    }, ensure_ascii=False).encode("utf-8")
+                        except aiohttp.ClientError as e:
+                            logger.error("Error converting image to base64: %s", str(e))
+                            yield json.dumps({
+                                "type": "error",
+                                "message": f"Error converting image to base64: {str(e)}"
+                            }, ensure_ascii=False).encode("utf-8")
+                    else:
+                        yield json.dumps({
+                            "type": "error",
+                            "message": result.get("error", "Failed to generate image")
+                        }, ensure_ascii=False).encode("utf-8")
+                elif is_code:
+                    messages = []
                     history = await storage.get_history(chat_ai_id)
                     history = await summarize_chat_history(
                         session=session,
                         history=history,
-                        max_history_length=10,
+                        max_history_length=5,
                         storage=storage,
                         chat_ai_id=chat_ai_id
                     )
                     messages.extend(history)
                     messages.append({"role": "user", "content": prompt})
-
-                    debate_prompt = textwrap.dedent(
-                        """
-                        Bạn là một trợ lý AI với khả năng tư duy sâu và tự nhiên như con người.
-                        Hãy mô phỏng quá trình suy nghĩ của bạn theo ngôi thứ nhất và trình bày rõ ràng, chi tiết các bước giải quyết vấn đề.
-                        Bạn đóng vai một lập trình viên xuất sắc, luôn tìm tòi, kiểm chứng và cải thiện giải pháp của mình.
-                        Các bước bạn cần tuân thủ:
-                        1. Bắt đầu câu trả lời với câu: "Okey, vấn đề của user là '{prompt}'."
-                        2. Chia nhỏ vấn đề thành các phần logic như: nguyên nhân, hậu quả và giải pháp.
-                        3. Kiểm tra độ chính xác của dữ liệu và tính logic của các lập luận.
-                        4. Diễn đạt lại ý tưởng một cách đơn giản, rõ ràng, tránh sử dụng các thuật ngữ phức tạp.
-                        5. Luôn tự hỏi "Còn cách nào tốt hơn không?" để cải thiện chất lượng giải pháp.
-                        6. Khi cần, hãy đính kèm các tài liệu liên quan như đoạn code hoặc các nguồn tham khảo bổ sung.
-                        """
-                    ).format(prompt=prompt)
-                    brain_think = [{"role": "user", "content": debate_prompt}]
-                    response_content = ""
-                    async for chunk in stream_response_deepthink(
-                        session=session,
-                        messages=brain_think,
-                        storage=storage,
-                        chat_ai_id=chat_ai_id
-                    ):
-                        try:
-                            chunk_data = json.loads(chunk)
-                            if chunk_data.get("message", {}).get("content"):
-                                response_content += chunk_data["message"]["content"]
-                        except json.JSONDecodeError:
-                            pass
-                        yield chunk
-                    if response_content:
-                        await storage.add_message("assistant", response_content, chat_ai_id)
-
-                    refined_prompt = textwrap.dedent(
-                        f"""
-                        Dựa trên phân tích "{response_content}", hãy đưa ra kết luận cuối cùng cho câu hỏi: "{prompt}" đầy đủ và logic nhất.
-                        """
-                    ).strip()
-                    messages.append({"role": "user", "content": refined_prompt})
-                    response_content = ""
                     async for chunk in stream_response_normal(
                         session=session,
-                        model=model,
+                        model=selected_model,
                         messages=messages,
                         storage=storage,
                         chat_ai_id=chat_ai_id
                     ):
-                        try:
-                            chunk_data = json.loads(chunk)
-                            if chunk_data.get("message", {}).get("content"):
-                                response_content += chunk_data["message"]["content"]
-                        except json.JSONDecodeError:
-                            pass
                         yield chunk
-                    if response_content:
-                        await storage.add_message("assistant", response_content, chat_ai_id)
-                elif is_search:
-                    messages = [{"role": "system", "content": custom_ai_text}]
+                elif is_deep_think:
+                    messages = []
+                    messages.append({"role": "system", "content": custom_ai_text})
                     history = await storage.get_history(chat_ai_id)
                     history = await summarize_chat_history(
                         session=session,
                         history=history,
-                        max_history_length=10,
+                        max_history_length=5,
                         storage=storage,
                         chat_ai_id=chat_ai_id
                     )
+                    logger.debug(f"Deepthink history: {history}")
                     messages.extend(history)
                     messages.append({"role": "user", "content": prompt})
-
-                    search_results = search_duckduckgo_unlimited(prompt)
-                    if search_results:
-                        extracted_info = extract_search_info(search_results)
-                        search_prompt = f"""
-                            Kết quả tìm kiếm: \n"{extracted_info}"\n Dựa vào kết quả tìm kiếm trên, hãy cung cấp thêm thông tin 'body' và 'href' của website đó.
-                        """
-                        messages.append({"role": "user", "content": search_prompt})
-                        response_content = ""
-                        async for chunk in stream_response_normal(
-                            session=session,
-                            model=model,
-                            messages=messages,
-                            storage=storage,
-                            chat_ai_id=chat_ai_id
-                        ):
-                            try:
-                                chunk_data = json.loads(chunk)
-                                if chunk_data.get("message", {}).get("content"):
-                                    response_content += chunk_data["message"]["content"]
-                            except json.JSONDecodeError:
-                                pass
-                            yield chunk
-                        if response_content:
-                            await storage.add_message("assistant", response_content, chat_ai_id)
+                    async for chunk in stream_response_deepthink(
+                        session=session,
+                        messages=messages,
+                        storage=storage,
+                        chat_ai_id=chat_ai_id
+                    ):
+                        yield chunk
                 elif is_deepsearch:
-                    messages = [{"role": "system", "content": custom_ai_text}]
+                    messages = []
+                    messages.append({"role": "system", "content": custom_ai_text})
                     history = await storage.get_history(chat_ai_id)
                     history = await summarize_chat_history(
                         session=session,
                         history=history,
-                        max_history_length=10,
+                        max_history_length=5,
                         storage=storage,
                         chat_ai_id=chat_ai_id
                     )
+                    logger.debug(f"Deepsearch history: {history}")
                     messages.extend(history)
                     messages.append({"role": "user", "content": prompt})
-
-                    response_content = ""
                     async for chunk in deepsearch(
                         messages=messages,
                         session=session,
-                        model=model,
+                        model=selected_model,
                         storage=storage,
                         chat_ai_id=chat_ai_id
                     ):
-                        try:
-                            chunk_data = json.loads(chunk)
-                            if chunk_data.get("type") == "deepsearch" and chunk_data.get("message", {}).get("content"):
-                                response_content += chunk_data["message"]["content"]
-                        except json.JSONDecodeError:
-                            pass
                         yield chunk
-                    if response_content:
-                        await storage.add_message("assistant", response_content, chat_ai_id)
                 else:
-                    messages = [{"role": "system", "content": custom_ai_text}]
+                    # Normal chat
+                    messages = []
                     history = await storage.get_history(chat_ai_id)
                     history = await summarize_chat_history(
                         session=session,
                         history=history,
-                        max_history_length=10,
+                        max_history_length=5,
                         storage=storage,
                         chat_ai_id=chat_ai_id
                     )
+                    logger.debug(f"Normal history: {history}")
                     messages.extend(history)
                     messages.append({"role": "user", "content": prompt})
-
-                    response_content = ""
                     async for chunk in stream_response_normal(
                         session=session,
-                        model=model,
+                        model="4T-Small:latest",
                         messages=messages,
                         storage=storage,
                         chat_ai_id=chat_ai_id
                     ):
-                        try:
-                            chunk_data = json.loads(chunk)
-                            if chunk_data.get("message", {}).get("content"):
-                                response_content += chunk_data["message"]["content"]
-                        except json.JSONDecodeError:
-                            pass
                         yield chunk
-                    if response_content:
-                        await storage.add_message("assistant", response_content, chat_ai_id)
+
+                # Sau khi gửi tin nhắn đầu tiên, trigger AI đặt tên chat (nền)
+                if storage and hasattr(storage, 'repo'):
+                    # Lấy lại system_ai
+                    system_ai = custom_ai_text
+                    trigger_ai_set_chat_name(chat_ai_id, prompt, system_ai, repo)
 
             except aiohttp.ClientError as e:
-                error_msg = f"Connection error: {str(e)}"
-                yield json.dumps({"error": error_msg, "type": "error"}, ensure_ascii=False)
+                yield json.dumps({
+                    "type": "error",
+                    "message": f"Connection error: {str(e)}"
+                }, ensure_ascii=False).encode("utf-8")
             except Exception as e:
-                error_msg = f"Unexpected error: {str(e)}"
-                yield json.dumps({"error": error_msg, "type": "error"}, ensure_ascii=False)
-            # KHÔNG gọi await session.close() ở đây
+                yield json.dumps({
+                    "type": "error",
+                    "message": f"Unexpected error: {str(e)}"
+                }, ensure_ascii=False).encode("utf-8")
 
     return StreamingResponse(generate(), media_type="text/plain")
 
@@ -354,7 +339,7 @@ async def chat_test(chat_request: ChatRequest):
 
     # Model selection
     if is_code:
-        selected_model = "qwen2.5-coder:14b-instruct"
+        selected_model = "4T-Coder:latest"
     elif is_image:
         selected_model = None  # handled by generate_image
     else:
@@ -399,12 +384,12 @@ async def chat_test(chat_request: ChatRequest):
                             "message": result.get("error", "Failed to generate image")
                         }, ensure_ascii=False).encode("utf-8")
                 elif is_code:
-                    messages = [{"role": "system", "content": DEFAULT_CUSTOM_AI}]
+                    messages = []
                     history = await TEST_STORAGE.get_history()
                     history = await summarize_chat_history(
                         session=session,
                         history=history,
-                        max_history_length=10,
+                        max_history_length=5,
                         storage=TEST_STORAGE
                     )
                     messages.extend(history)
@@ -417,55 +402,30 @@ async def chat_test(chat_request: ChatRequest):
                     ):
                         yield chunk
                 elif is_deep_think:
-                    logger.debug(f"Processing deepthink request with prompt: {prompt}")
-                    messages = [{"role": "system", "content": DEFAULT_THINK_AI}]
+                    messages = []
                     history = await TEST_STORAGE.get_history()
                     history = await summarize_chat_history(
                         session=session,
                         history=history,
-                        max_history_length=10,
+                        max_history_length=5,
                         storage=TEST_STORAGE
                     )
                     logger.debug(f"Deepthink history: {history}")
                     messages.extend(history)
                     messages.append({"role": "user", "content": prompt})
-                    response_content = ""
                     async for chunk in stream_response_deepthink(
                         session=session,
                         messages=messages,
                         storage=TEST_STORAGE
                     ):
-                        try:
-                            chunk_data = json.loads(chunk)
-                            logger.debug(f"Deepthink chunk sent: {chunk_data}")
-                            if chunk_data.get("message", {}).get("content"):
-                                response_content += chunk_data["message"]["content"]
-                        except json.JSONDecodeError:
-                            pass
-                        yield chunk
-                    if response_content:
-                        await TEST_STORAGE.add_message("assistant", response_content)
-                    refined_prompt = f"""
-                    Hãy xem lại suy nghĩ của bạn: "{response_content}".
-                    Giờ, trả lời câu hỏi "{prompt}" một cách rõ ràng và tự nhiên nhất, như đang trò chuyện với một người bạn.
-                    - Tập trung vào ý chính, giải thích dễ hiểu, tránh dùng từ ngữ quá phức tạp.
-                    - Tổng hợp các điểm quan trọng từ suy nghĩ trước để đưa ra câu trả lời logic và đầy đủ.
-                    """
-                    messages.append({"role": "user", "content": refined_prompt})
-                    async for chunk in stream_response_normal(
-                        session=session,
-                        model=selected_model,
-                        messages=messages,
-                        storage=TEST_STORAGE
-                    ):
                         yield chunk
                 elif is_deepsearch:
-                    messages = [{"role": "system", "content": DEFAULT_CUSTOM_AI}]
+                    messages = []
                     history = await TEST_STORAGE.get_history()
                     history = await summarize_chat_history(
                         session=session,
                         history=history,
-                        max_history_length=10,
+                        max_history_length=5,
                         storage=TEST_STORAGE
                     )
                     logger.debug(f"Deepsearch history: {history}")
@@ -480,12 +440,12 @@ async def chat_test(chat_request: ChatRequest):
                         yield chunk
                 else:
                     # Normal chat
-                    messages = [{"role": "system", "content": DEFAULT_CUSTOM_AI}]
+                    messages = []
                     history = await TEST_STORAGE.get_history()
                     history = await summarize_chat_history(
                         session=session,
                         history=history,
-                        max_history_length=10,
+                        max_history_length=5,
                         storage=TEST_STORAGE
                     )
                     logger.debug(f"Normal history: {history}")
@@ -493,11 +453,13 @@ async def chat_test(chat_request: ChatRequest):
                     messages.append({"role": "user", "content": prompt})
                     async for chunk in stream_response_normal(
                         session=session,
-                        model=selected_model,
+                        model="4T-Small:latest",
                         messages=messages,
                         storage=TEST_STORAGE
                     ):
                         yield chunk
+
+                # Không trigger AI đặt tên chat cho /test endpoint
 
             except aiohttp.ClientError as e:
                 yield json.dumps({
@@ -611,3 +573,46 @@ async def upload_image(file: UploadFile = File(...)):
     with file_path.open("wb") as buffer:
         shutil.copyfileobj(file.file, buffer)
     return {"file_path": str(file_path)}
+
+@router.get("/create_image")
+async def create_image(prompt: str, current_user: dict = Depends(verify_token)):
+    """Tạo ảnh từ prompt và trả về đường dẫn ảnh. Yêu cầu xác thực."""
+    username = current_user["username"]
+    db_path = await call_api_get_dbname(username)
+    repo = RepositoryClient(db_path)
+
+
+
+    from services.img import generate_image
+    result = await generate_image(prompt_text=prompt)
+    if "image_path" in result and "mime_type" in result:
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    "http://localhost:2401/chat/process_image",
+                    json={"file_path": result["image_path"]}
+                ) as response:
+                    if response.status != 200:
+                        logger.error("Failed to convert image to base64: %s", response.status)
+                        yield json.dumps({
+                            "type": "error",
+                            "message": f"Failed to convert image to base64: {response.status}"
+                        }, ensure_ascii=False).encode("utf-8")
+                    else:
+                        base64_data = await response.json()
+                        yield json.dumps({
+                            "type": "image",
+                            "image_base64": base64_data["base64"],
+                            "mime_type": result["mime_type"]
+                        }, ensure_ascii=False).encode("utf-8")
+        except aiohttp.ClientError as e:
+            logger.error("Error converting image to base64: %s", str(e))
+            yield json.dumps({
+                "type": "error",
+                "message": f"Error converting image to base64: {str(e)}"
+            }, ensure_ascii=False).encode("utf-8")
+    else:
+        yield json.dumps({
+            "type": "error",
+            "message": result.get("error", "Failed to generate image")
+        }, ensure_ascii=False).encode("utf-8")

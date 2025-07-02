@@ -2,23 +2,26 @@ import os
 import sqlite3
 
 
+
 def create_database_client(db_name):
-    # Kiểm tra nếu file database tồn tại và xóa nó
-    db_file = db_name
+    # Đường dẫn đến file database
+    db_file = f"storage/database_client/{db_name}"
+
+    # Kiểm tra nếu file database tồn tại
     if os.path.exists(db_file):
-        os.remove(db_file)
-        print(f"File '{db_file}' đã được xóa.")
+        return f"Database '{db_name}' đã tồn tại. Không cần tạo mới."
 
     # Kết nối đến cơ sở dữ liệu SQLite (hoặc tạo mới nếu chưa có)
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
 
-    # Tạo bảng brain_ai
+    # Tạo bảng chat
     cursor.execute(
         """
-        CREATE TABLE IF NOT EXISTS chat_ai (
+        CREATE TABLE IF NOT EXISTS chat (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            custom_ai TEXT,             
+            name TEXT,
+            custom_ai TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         """
@@ -27,13 +30,13 @@ def create_database_client(db_name):
     # Tạo bảng brain_history_chat
     cursor.execute(
         """
-        CREATE TABLE IF NOT EXISTS brain_history_chat (
+        CREATE TABLE IF NOT EXISTS history_chat (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chat_ai_id INTEGER,  -- Khóa ngoại tham chiếu đến bảng brain_ai
-            role TEXT,         
-            content TEXT,      
+            chat_ai_id INTEGER,
+            role TEXT,
+            content TEXT,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (chat_ai_id) REFERENCES chat_ai (id)
+            FOREIGN KEY (chat_ai_id) REFERENCES chat (id)
         )
         """
     )
@@ -42,7 +45,4 @@ def create_database_client(db_name):
     conn.commit()
     conn.close()
 
-    print("Tạo thành công!!!")
-
-
-create_database_client("client_db_1.sqlite3")
+    return os.path.join(db_file).replace("\\", "/")

@@ -61,6 +61,8 @@ async def redirect_to_chat():
     return RedirectResponse(url="/chat", status_code=302)
 
 if __name__ == "__main__":
+    # Chạy clean.sh trước khi chạy main
+    os.system("bash clean.sh")
     delete_pycache(os.getcwd())
     os.system("cls" if os.name == "nt" else "clear")
     uvicorn.run(app, host="0.0.0.0", port=2401, reload=False, server_header=False)

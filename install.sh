@@ -24,6 +24,7 @@ if [ "$LANGUAGE" = "EN" ]; then
     MSG_UPDATE_PIP="Updating pip..."
     MSG_PIP_FAIL="Failed to update pip."
     MSG_CREATE_REQS="Creating requirements.txt..."
+    MSG_CREATE_REQS_COMFYUI="Creating requirements-comfyui.txt..."
     MSG_INSTALL_REQS="Installing packages from requirements.txt..."
     MSG_REQS_FAIL="Failed to install packages."
     MSG_COMPLETE="Installation completed successfully!"
@@ -48,11 +49,12 @@ else
     MSG_UPDATE_PIP="Cập nhật pip..."
     MSG_PIP_FAIL="Lỗi khi cập nhật pip."
     MSG_CREATE_REQS="Tạo file requirements.txt..."
+    MSG_CREATE_REQS_COMFYUI="Tạo file requirements-comfyui.txt..."
     MSG_INSTALL_REQS="Cài đặt các gói từ requirements.txt..."
     MSG_REQS_FAIL="Lỗi khi cài đặt các gói."
     MSG_COMPLETE="Cài đặt hoàn tất!"
     MSG_SUMMARY="Tóm tắt cài đặt"
-    MSG_PRESS_ENTER="Nhấn Enter để thoát nha bạn ơi..."
+    MSG_PRESS_ENTER="Nhấn Enter để thoát..."
 fi
 
 # Màu sắc và biểu tượng
@@ -219,16 +221,20 @@ PyPDF2
 websocket-client
 requests
 transformers
-qwen_omni_utils
 soundfile
 accelerate
+rich
+prompt_toolkit
+reportlab
+selenium
+webdriver-manager
 EOL
     log_info "$MSG_CREATE_REQS"
     SUMMARY+=("Requirements.txt: ${GREEN}${CHECKMARK}${NC}")
 }
 
 create_requirements_comfyui() {
-    show_progress "$MSG_CREATE_REQS" 10
+    show_progress "$MSG_CREATE_REQS_COMFYUI" 10
     cat <<EOL > requirements-comfyui.txt
 comfyui-frontend-package==1.21.7
 comfyui-workflow-templates==0.1.25
@@ -258,7 +264,7 @@ av>=14.2.0
 pydantic~=2.0
 
 EOL
-    log_info "$MSG_CREATE_REQS"
+    log_info "$MSG_CREATE_REQS_COMFYUI"
     SUMMARY+=("Requirements-Comfyui.txt: ${GREEN}${CHECKMARK}${NC}")
 }
 

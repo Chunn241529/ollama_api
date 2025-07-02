@@ -1,3 +1,4 @@
+
 import json
 import logging
 from datetime import datetime
@@ -21,6 +22,44 @@ logger = logging.getLogger(__name__)
 MAX_RETRIES = 3
 RETRY_DELAY = 1  # seconds
 CHUNK_SIZE = 4096
+
+
+async def classify_user_intent(prompt):
+    """Dùng AI để phân loại ý định user: image, code, hay normal."""
+    prompt_r = (
+        "Bạn là một AI thông minh, có khả năng phân tích và phân loại yêu cầu của người dùng.\n"
+        f"Dựa vào yêu cầu: '{prompt}', chỉ trả lời duy nhất một từ trong các lựa chọn sau: 'image', 'code', 'normal'.\n"
+        "- Nếu người dùng yêu cầu tạo, vẽ, sinh ra, generate, render, hoặc chỉnh sửa một hình ảnh mới (bao gồm các từ khóa như 'tạo ảnh', 'vẽ', 'sinh ảnh', 'generate image', 'render image', 'edit image', 'make image', 'create image', 'draw', 'thiết kế ảnh', hoặc ngữ cảnh rõ ràng yêu cầu tạo ảnh), trả lời 'image'.\n"
+        "- Nếu người dùng yêu cầu tạo prompt, mô tả, gợi ý, hoặc câu lệnh để sử dụng cho việc tạo ảnh mà không yêu cầu AI trực tiếp tạo ảnh, trả lời 'normal'.\n"
+        "- Nếu người dùng hỏi về hình ảnh, phân tích ảnh, mô tả ảnh, hoặc nhắc đến ảnh nhưng không yêu cầu tạo hoặc chỉnh sửa ảnh mới, trả lời 'normal'.\n"
+        "- Nếu người dùng yêu cầu tạo, viết, chỉnh sửa, hoặc giải thích mã nguồn (code), trả lời 'code'.\n"
+        "- Nếu yêu cầu là trò chuyện thông thường hoặc không thuộc các trường hợp trên, trả lời 'normal'.\n"
+        "Ưu tiên kiểm tra ý định tạo ảnh trước các trường hợp khác. Chỉ trả về đúng 1 từ, không giải thích gì thêm.\n"
+    )
+
+    messages = [
+        {"role": "user", "content": prompt_r}
+    ]
+    try:
+        import aiohttp
+        async with aiohttp.ClientSession() as session:
+            async for chunk in stream_response_normal(
+                session=session,
+                model="4T-Small:latest",
+                messages=messages,
+                storage=None
+            ):
+                try:
+                    chunk_data = json.loads(chunk)
+                    content = chunk_data.get("message", {}).get("content", "").strip().lower()
+                    if content in ["image", "code", "normal"]:
+                        logger.debug(f"Type: {content}")
+                        return content
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return None
 
 async def _process_stream(response, is_type: str) -> AsyncGenerator[str, None]:
     """Process stream response with optimized buffering."""
@@ -101,14 +140,15 @@ async def stream_response_normal(
     chat_ai_id: int = None,
     max_history_length: int = 10,
 ) -> AsyncGenerator[str, None]:
-    """Stream normal response with optimized connection handling and history integration."""
+    """Stream normal response with optimized connection handling and history integration. No system prompt injected."""
     try:
         from .history_manager import summarize_chat_history
 
-        logger.debug(f"Storage: {type(storage)}, Chat AI ID: {chat_ai_id}")
-        full_messages = messages
-        response_content = ""
 
+        logger.debug(f"Storage: {type(storage)}, Chat AI ID: {chat_ai_id}")
+        response_content = ""
+        # Chỉ lấy context system và 1-2 message user gần nhất, không nối toàn bộ history cho AI, nhưng vẫn lưu đầy đủ history
+        full_messages = []
         if storage:
             if isinstance(storage, DatabaseHistoryStorage) and chat_ai_id is None:
                 logger.error("chat_ai_id is required for DatabaseHistoryStorage")
@@ -129,28 +169,41 @@ async def stream_response_normal(
                 storage=storage,
                 chat_ai_id=chat_ai_id,
             )
-            full_messages = history + messages
+            # Lấy context system (nếu có)
+            context_msgs = [m for m in (history or []) if m.get("role") == "system"]
+            # Lấy 2 message user gần nhất (nếu có)
+            user_msgs = [m for m in (history or []) if m.get("role") == "user"]
+            last_user_msgs = user_msgs[-2:] if len(user_msgs) >= 2 else user_msgs
+            # Lấy 1 message assistant gần nhất (nếu có)
+            assistant_msgs = [m for m in (history or []) if m.get("role") == "assistant"]
+            last_assistant_msg = assistant_msgs[-1:] if assistant_msgs else []
+            # Ghép lại: context + user gần nhất + assistant gần nhất + message mới
+            full_messages = context_msgs + last_user_msgs + last_assistant_msg + (messages or [])
 
-            user_messages = [msg for msg in messages if msg.get("role") == "user"]
+            # Luôn lưu user message mới vào history
+            user_messages = [msg for msg in (messages or []) if msg.get("role") == "user"]
             if user_messages:
                 await storage.add_message(user_messages[-1]["role"], user_messages[-1]["content"], chat_ai_id)
+        else:
+            full_messages = messages if messages is not None else []
 
-        payload = prepare_payload(model, full_messages, temperature, max_tokens, top_p)
-        logger.debug("Sending normal response payload")
+        payload = prepare_payload("4T-Small:latest", full_messages, temperature, max_tokens, top_p)
+        logger.debug("Sending normal response payload (context system + last user/assistant only)")
 
+        response_content = ""
         async for chunk in _make_api_request(session, f"{url_local}/api/chat", payload, "text"):
-            if storage:
-                try:
-                    chunk_data = json.loads(chunk)
-                    if chunk_data.get("message", {}).get("content"):
-                        response_content += chunk_data["message"]["content"]
-                except json.JSONDecodeError:
-                    pass
+            # Thu thập response để lưu vào history
+            try:
+                chunk_data = json.loads(chunk)
+                if chunk_data.get("message", {}).get("content"):
+                    response_content += chunk_data["message"]["content"]
+            except Exception:
+                pass
             yield chunk
 
+        # Sau khi nhận xong, lưu assistant response vào history
         if storage and response_content:
             await storage.add_message("assistant", response_content, chat_ai_id)
-            logger.debug(f"Stored assistant response for chat_ai_id {chat_ai_id or 'list'}")
 
     except Exception as e:
         logger.error(f"Unexpected error in stream_response_normal: {str(e)}")
@@ -163,7 +216,7 @@ async def stream_response_normal(
 
 async def stream_response_deepthink(
     session,
-    messages: list,
+    messages: list = None,
     temperature: float = 0.1,
     max_tokens: int = -1,
     top_p: float = 0.95,
@@ -172,14 +225,15 @@ async def stream_response_deepthink(
     chat_ai_id: int = None,
     max_history_length: int = 10,
 ) -> AsyncGenerator[str, None]:
-    """Stream deepthink response with optimized connection handling and history integration."""
+    """Stream deepthink response using 4T-Thinker:latest and stream every chunk with current in_think state."""
     try:
         from .history_manager import summarize_chat_history
 
-        logger.debug(f"Storage: {type(storage)}, Chat AI ID: {chat_ai_id}")
-        full_messages = messages
-        response_content = ""
 
+        messages = messages if messages is not None else []
+        response_content = ""
+        # Chỉ lấy context system và 1-2 message user gần nhất, không nối toàn bộ history
+        full_messages = []
         if storage:
             if isinstance(storage, DatabaseHistoryStorage) and chat_ai_id is None:
                 logger.error("chat_ai_id is required for DatabaseHistoryStorage")
@@ -200,28 +254,94 @@ async def stream_response_deepthink(
                 storage=storage,
                 chat_ai_id=chat_ai_id,
             )
-            full_messages = history + messages
+            # Lấy context system (nếu có)
+            context_msgs = [m for m in (history or []) if m.get("role") == "system"]
+            # Lấy 2 message user gần nhất (nếu có)
+            user_msgs = [m for m in (history or []) if m.get("role") == "user"]
+            last_user_msgs = user_msgs[-2:] if len(user_msgs) >= 2 else user_msgs
+            # Lấy 1 message assistant gần nhất (nếu có)
+            assistant_msgs = [m for m in (history or []) if m.get("role") == "assistant"]
+            last_assistant_msg = assistant_msgs[-1:] if assistant_msgs else []
+            # Ghép lại: context + user gần nhất + assistant gần nhất + message mới
+            full_messages = context_msgs + last_user_msgs + last_assistant_msg + (messages or [])
 
-            user_messages = [msg for msg in messages if msg.get("role") == "user"]
+            # Không tự động lưu response mới vào history ở đây, chỉ lưu user message mới nếu cần
+            user_messages = [msg for msg in (messages or []) if msg.get("role") == "user"]
             if user_messages:
                 await storage.add_message(user_messages[-1]["role"], user_messages[-1]["content"], chat_ai_id)
+        else:
+            full_messages = messages.copy()
 
-        payload = prepare_payload("gemma3:4b-it-qat", full_messages, temperature, max_tokens, top_p)
-        logger.debug("Sending deepthink response payload")
+        payload = prepare_payload("4T-Thinker:latest", full_messages, temperature, max_tokens, top_p)
+        logger.debug("Sending deepthink response payload (context system + last user/assistant only)")
 
-        async for chunk in _make_api_request(session, f"{url_local}/api/chat", payload, "thinking"):
-            if storage:
-                try:
-                    chunk_data = json.loads(chunk)
-                    if chunk_data.get("message", {}).get("content"):
-                        response_content += chunk_data["message"]["content"]
-                except json.JSONDecodeError:
-                    pass
-            yield chunk
+        # Stream every chunk with current in_think state
+        in_think = False
+        tag_open = "<think>"
+        tag_close = "</think>"
+        buffer = ""
+        async for chunk in _make_api_request(session, f"{url_local}/api/chat", payload, "text"):
+            try:
+                chunk_data = json.loads(chunk)
+                content = chunk_data.get("message", {}).get("content", "")
+                if not content:
+                    yield chunk
+                    continue
+                buffer += content
+                while buffer:
+                    if not in_think:
+                        idx = buffer.find(tag_open)
+                        if idx == -1:
+                            out = buffer
+                            buffer = ""
+                            if out:
+                                out_chunk = chunk_data.copy()
+                                out_chunk["type"] = "text"
+                                out_chunk["in_think"] = False
+                                out_chunk["message"] = out_chunk.get("message", {}).copy() if out_chunk.get("message") else {}
+                                out_chunk["message"]["content"] = out
+                                yield json.dumps(out_chunk, ensure_ascii=False) + "\n"
+                            break
+                        else:
+                            if idx > 0:
+                                out = buffer[:idx]
+                                out_chunk = chunk_data.copy()
+                                out_chunk["type"] = "text"
+                                out_chunk["in_think"] = False
+                                out_chunk["message"] = out_chunk.get("message", {}).copy() if out_chunk.get("message") else {}
+                                out_chunk["message"]["content"] = out
+                                yield json.dumps(out_chunk, ensure_ascii=False) + "\n"
+                            buffer = buffer[idx + len(tag_open):]
+                            in_think = True
+                    else:
+                        idx = buffer.find(tag_close)
+                        if idx == -1:
+                            out = buffer
+                            buffer = ""
+                            if out:
+                                out_chunk = chunk_data.copy()
+                                out_chunk["type"] = "thinking"
+                                out_chunk["in_think"] = True
+                                out_chunk["message"] = out_chunk.get("message", {}).copy() if out_chunk.get("message") else {}
+                                out_chunk["message"]["content"] = out
+                                yield json.dumps(out_chunk, ensure_ascii=False) + "\n"
+                            break
+                        else:
+                            if idx > 0:
+                                out = buffer[:idx]
+                                out_chunk = chunk_data.copy()
+                                out_chunk["type"] = "thinking"
+                                out_chunk["in_think"] = True
+                                out_chunk["message"] = out_chunk.get("message", {}).copy() if out_chunk.get("message") else {}
+                                out_chunk["message"]["content"] = out
+                                yield json.dumps(out_chunk, ensure_ascii=False) + "\n"
+                            buffer = buffer[idx + len(tag_close):]
+                            in_think = False
+            except Exception as e:
+                logger.error(f"Error processing deepthink chunk: {e}")
+                yield chunk
 
-        if storage and response_content:
-            await storage.add_message("assistant", response_content, chat_ai_id)
-            logger.debug(f"Stored assistant response for chat_ai_id {chat_ai_id or 'list'}")
+        # Không tự động lưu response mới vào history ở đây
 
     except Exception as e:
         logger.error(f"Unexpected error in stream_response_deepthink: {str(e)}")
@@ -244,12 +364,12 @@ async def stream_response_image(
     chat_ai_id: int = None,
     max_history_length: int = 10,
 ) -> AsyncGenerator[str, None]:
-    """Stream image response with optimized connection handling and history integration."""
+    """Stream image response with optimized connection handling and history integration. No system prompt injected."""
     try:
         from .history_manager import summarize_chat_history
 
         logger.debug(f"Storage: {type(storage)}, Chat AI ID: {chat_ai_id}")
-        full_messages = messages
+        full_messages = messages if messages is not None else []
         response_content = ""
 
         if storage:
@@ -272,14 +392,14 @@ async def stream_response_image(
                 storage=storage,
                 chat_ai_id=chat_ai_id,
             )
-            full_messages = history + messages
+            full_messages = (history or []) + (messages or [])
 
-            user_messages = [msg for msg in messages if msg.get("role") == "user"]
+            user_messages = [msg for msg in (messages or []) if msg.get("role") == "user"]
             if user_messages:
                 await storage.add_message(user_messages[-1]["role"], user_messages[-1]["content"], chat_ai_id)
 
         payload = prepare_payload(model, full_messages, temperature, max_tokens, top_p)
-        logger.debug("Sending image response payload")
+        logger.debug("Sending image response payload (no system prompt injected)")
 
         async for chunk in _make_api_request(session, f"{url_local}/api/chat", payload, "image_description"):
             if storage:
@@ -322,7 +442,7 @@ async def stream_response_deepsearch(
     chat_ai_id: int = None,
     max_history_length: int = 10,
 ) -> AsyncGenerator[str, None]:
-    """Stream deepsearch response with optimized handling."""
+    """Stream deepsearch response with optimized handling. No system prompt injected."""
     try:
         from .history_manager import summarize_chat_history
         from .utils import get_task_handler
@@ -375,7 +495,7 @@ async def stream_response_deepsearch(
                 storage=storage,
                 chat_ai_id=chat_ai_id,
             )
-            full_messages = history + full_messages
+            full_messages = (history or []) + (full_messages or [])
 
             if isinstance(messages, dict) and messages.get("role") == "user":
                 await storage.add_message(messages["role"], messages["content"], chat_ai_id)
@@ -385,7 +505,7 @@ async def stream_response_deepsearch(
                     await storage.add_message(user_messages[-1]["role"], user_messages[-1]["content"], chat_ai_id)
 
         payload = prepare_payload(model, full_messages, temperature, max_tokens, top_p)
-        logger.debug("Sending deepsearch payload")
+        logger.debug("Sending deepsearch payload (no system prompt injected)")
 
         async for chunk in _make_api_request(session, f"{url_local}/api/chat", payload, "searching"):
             if storage:
@@ -413,15 +533,15 @@ async def stream_response_deepsearch(
 async def stream_response_history(
     session,
     messages: list,
-    model: str = "qwen2.5vl:7b",
+    model: str = "4T-Small:latest",
     temperature: float = 0.3,
     max_tokens: int = -1,
     url_local: str = OLLAMA_API_URL,
 ) -> AsyncGenerator[str, None]:
     """Stream response chỉ cho tóm tắt history, không thêm system prompt AI."""
     try:
-        payload = prepare_payload(model, messages, temperature, max_tokens)
-        logger.debug("Sending history summary payload")
+        payload = prepare_payload(model, messages, temperature, max_tokens,top_p=0.95)
+        logger.debug("Sending history summary payload (no system prompt injected)")
         async for chunk in _make_api_request(session, f"{url_local}/api/chat", payload, "text"):
             yield chunk
     except Exception as e:

@@ -80,15 +80,6 @@ else
     log_warn "Không tìm thấy thư mục cache Hugging Face."
 fi
 
-# Xóa cache snap code
-show_progress "$MSG_CLEAN_SNAP" 10
-if [ -d /home/nguyentrung/snap/code/184/.local/share/Trash/files ]; then
-    rm -rf /home/nguyentrung/snap/code/184/.local/share/Trash/files/* || log_error "Không thể xóa cache snap code."
-    log_info "$MSG_CLEAN_SNAP"
-else
-    log_warn "Không tìm thấy thư mục cache snap code."
-fi
-
 # Xóa các thư mục __pycache__
 show_progress "$MSG_CLEAN_PYCACHE" 15
 find "$PWD" -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || log_warn "Không thể xóa một số thư mục __pycache__."
@@ -99,6 +90,7 @@ show_progress "$MSG_CLEAN_PYC" 15
 find "$PWD" -type f -name "*.pyc" -exec rm -f {} + 2>/dev/null || log_warn "Không thể xóa một số file *.pyc."
 log_info "$MSG_CLEAN_PYC"
 
+
 # Xóa cache pip
 show_progress "$MSG_CLEAN_PIP" 10
 if [ -d ~/.cache/pip ]; then
@@ -108,24 +100,39 @@ else
     log_warn "Không tìm thấy thư mục cache pip."
 fi
 
-# Xóa cache PyTorch
-show_progress "$MSG_CLEAN_TORCH" 10
-if [ -d ~/.cache/torch ]; then
-    rm -rf ~/.cache/torch/* || log_error "Không thể xóa cache PyTorch."
-    log_info "$MSG_CLEAN_TORCH"
-else
-    log_warn "Không tìm thấy thư mục cache PyTorch."
+# Xóa cache hệ thống Linux phổ biến
+show_progress "Xóa cache hệ thống Linux..." 10
+# Xóa cache apt (Debian/Ubuntu)
+if command -v apt-get >/dev/null 2>&1; then
+    sudo apt-get clean && log_info "Đã xóa cache apt-get." || log_warn "Không thể xóa cache apt-get."
+fi
+# Xóa cache dnf (Fedora)
+if command -v dnf >/dev/null 2>&1; then
+    sudo dnf clean all && log_info "Đã xóa cache dnf." || log_warn "Không thể xóa cache dnf."
+fi
+# Xóa cache yum (CentOS/RHEL)
+if command -v yum >/dev/null 2>&1; then
+    sudo yum clean all && log_info "Đã xóa cache yum." || log_warn "Không thể xóa cache yum."
+fi
+# Xóa cache pacman (Arch Linux)
+if command -v pacman >/dev/null 2>&1; then
+    sudo pacman -Scc --noconfirm && log_info "Đã xóa cache pacman." || log_warn "Không thể xóa cache pacman."
+fi
+# Xóa cache systemd journal (nếu có)
+if command -v journalctl >/dev/null 2>&1; then
+    sudo journalctl --vacuum-time=2d && log_info "Đã dọn dẹp journalctl (giữ lại 2 ngày)." || log_warn "Không thể dọn dẹp journalctl."
+fi
+# Xóa cache thumbnail (nếu có)
+if [ -d ~/.cache/thumbnails ]; then
+    rm -rf ~/.cache/thumbnails/* && log_info "Đã xóa cache thumbnails." || log_warn "Không thể xóa cache thumbnails."
 fi
 
-# Xóa cache ComfyUI (nếu có)
-show_progress "$MSG_CLEAN_COMFYUI" 10
-if [ -d ~/.cache/comfyui ]; then
-    rm -rf ~/.cache/comfyui/* || log_error "Không thể xóa cache ComfyUI."
-    log_info "$MSG_CLEAN_COMFYUI"
-else
-    log_warn "Không tìm thấy thư mục cache ComfyUI."
-fi
+
 
 # Hoàn tất
 log_info "$MSG_SUCCESS"
 log_info "$(printf "$MSG_LOG" "$LOG_FILE")"
+
+# Xóa log sau 4 giây
+sleep 4
+rm -f "$LOG_FILE"

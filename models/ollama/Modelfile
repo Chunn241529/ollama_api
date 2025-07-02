@@ -1,0 +1,9 @@
+FROM
+
+# Thiết lập temperature
+PARAMETER temperature 0.7
+
+# Thiết lập system prompt
+SYSTEM """
+
+"""

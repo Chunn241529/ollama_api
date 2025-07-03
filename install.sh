@@ -228,6 +228,7 @@ prompt_toolkit
 reportlab
 selenium
 webdriver-manager
+textual
 EOL
     log_info "$MSG_CREATE_REQS"
     SUMMARY+=("Requirements.txt: ${GREEN}${CHECKMARK}${NC}")

@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
 from routes.auth import router as auth_router
 from routes.chat import router as chat_router
+from routes.image import router as image_router
 from config.settings import CORS_SETTINGS
 
 
@@ -19,14 +20,25 @@ def delete_pycache(root_dir):
             shutil.rmtree(pycache_path)
             print(f"Deleted: {pycache_path}")
 
+
 app = FastAPI()
 app.add_middleware(CORSMiddleware, **CORS_SETTINGS)
 app.include_router(auth_router)
 app.include_router(chat_router)
-app.mount("/templates/static", StaticFiles(directory="templates/static"), name="templates/static")
-app.mount("/storage", StaticFiles(directory="/home/nguyentrung/Documents/ollama_api/storage"), name="storage")
+app.include_router(image_router)
+app.mount(
+    "/templates/static",
+    StaticFiles(directory="templates/static"),
+    name="templates/static",
+)
+app.mount(
+    "/storage",
+    StaticFiles(directory="/home/nguyentrung/Documents/ollama_api/storage"),
+    name="storage",
+)
 
 templates = Jinja2Templates(directory="templates")
+
 
 @app.get("/chat", response_class=HTMLResponse)
 async def get_chat_page(request: Request):
@@ -37,14 +49,18 @@ async def get_chat_page(request: Request):
     response.headers["Expires"] = "0"
     return response
 
+
 @app.get("/login", response_class=HTMLResponse)
 async def get_login_page(request: Request):
     """Serve login page."""
-    response = templates.TemplateResponse("authentication/login.html", {"request": request})
+    response = templates.TemplateResponse(
+        "authentication/login.html", {"request": request}
+    )
     response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
     response.headers["Pragma"] = "no-cache"
     response.headers["Expires"] = "0"
     return response
+
 
 @app.get("/test", response_class=HTMLResponse)
 async def get_test(request: Request):
@@ -55,10 +71,12 @@ async def get_test(request: Request):
     response.headers["Expires"] = "0"
     return response
 
+
 @app.get("/", response_class=RedirectResponse)
 async def redirect_to_chat():
     """Redirect root to chat page."""
     return RedirectResponse(url="/chat", status_code=302)
+
 
 if __name__ == "__main__":
     # Chạy clean.sh trước khi chạy main

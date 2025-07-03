@@ -12,6 +12,16 @@ class ChatRequest(BaseModel):
     is_image: bool = False
     messages: Optional[List[Dict]] = None  # Thêm trường messages kiểu List[Dict] với giá trị mặc định None
 
+class GenImgRequest(BaseModel):
+    chat_ai_id: int = None
+    prompt: str
+
+class InpaintImgRequest(BaseModel):
+    chat_ai_id: int = None
+    prompt: str
+    image_path: str
+    output_dir: str = "ComfyUI"
+
 class ManagerChat(BaseModel):
     name: str = None
     custom_ai: str = DEFAULT_CUSTOM_AI

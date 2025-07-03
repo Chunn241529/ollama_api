@@ -1,5 +1,6 @@
 import json
 import logging
+import aiohttp
 from functools import lru_cache
 from typing import List, Dict
 from datetime import datetime
@@ -17,19 +18,20 @@ logger = logging.getLogger(__name__)
 
 @lru_cache(maxsize=100)
 def _create_summary_prompt(history_str: str) -> list:
-    """Tạo prompt để tóm tắt lịch sử chat."""
+    """Tạo prompt để tóm tắt lịch sử chat với yêu cầu chi tiết hơn."""
     return [{
         "role": "system",
-        "content": """Với vai trò là một AI assistant chuyên nghiệp, hãy tóm tắt cuộc hội thoại sau một cách hiệu quả:
-                     1. Chỉ giữ lại những thông tin quan trọng nhất và context cần thiết
-                     2. Tập trung vào các yêu cầu, quyết định và kết luận chính
-                     3. Bỏ qua các chi tiết thừa và hội thoại không quan trọng
-                     4. Viết ngắn gọn, súc tích nhưng vẫn đảm bảo đủ context để hiểu
-                     5. Giữ lại các tham số kỹ thuật hoặc cấu hình quan trọng nếu có
-                     Mục tiêu: Tạo ra một bản tóm tắt, giữ được tất cả thông tin cần thiết."""
+        "content": """Với vai trò là một AI assistant chuyên nghiệp, hãy tóm tắt cuộc hội thoại sau một cách chi tiết và hiệu quả:
+                     1. Giữ lại các thông tin quan trọng nhất, bao gồm context, yêu cầu chính, và câu trả lời nổi bật.
+                     2. Đặc biệt giữ nguyên các đoạn code Python hoặc tham số kỹ thuật (nếu có) trong định dạng code block (```python ... ```).
+                     3. Tập trung vào các quyết định, kết luận, và các ví dụ cụ thể được cung cấp.
+                     4. Bỏ qua các chi tiết thừa như câu chào hỏi thông thường, nhưng giữ lại các chi tiết liên quan đến yêu cầu kỹ thuật.
+                     5. Viết tóm tắt ngắn gọn nhưng đầy đủ, với độ dài tối thiểu 50 từ để đảm bảo đủ chi tiết.
+                     6. Đảm bảo tóm tắt rõ ràng, dễ hiểu để AI có thể sử dụng làm context cho các câu hỏi tiếp theo.
+                     Mục tiêu: Tạo bản tóm tắt giữ được tất cả thông tin kỹ thuật quan trọng và context cần thiết."""
     }, {
         "role": "user",
-        "content": f"Tóm tắt cuộc hội thoại sau thành một đoạn ngắn gọn:\n\n{history_str}"
+        "content": f"Tóm tắt cuộc hội thoại sau thành một đoạn chi tiết:\n\n{history_str}"
     }]
 
 async def summarize_chat_history(
@@ -41,7 +43,7 @@ async def summarize_chat_history(
     storage: HistoryStorage = None,
     chat_ai_id: int = None,
 ) -> list:
-    """Tóm tắt lịch sử chat khi vượt quá số tin nhắn hoặc số ký tự, tránh tóm tắt lặp lại."""
+    """Tóm tắt lịch sử chat khi vượt quá số tin nhắn hoặc số ký tự, cho phép tóm tắt lại nếu vượt ngưỡng."""
     from .chat_stream import stream_response_history
 
     try:
@@ -52,17 +54,12 @@ async def summarize_chat_history(
             history = await storage.get_history(chat_ai_id)
         else:
             if not history:
+                logger.debug("No history provided, returning empty list")
                 return []
 
         total_chars = sum(len(m["content"]) for m in history)
         logger.debug(f"History: {len(history)} messages, {total_chars} characters")
 
-        has_summary = any(
-            m["role"] == "system" and m["content"].startswith("Context từ cuộc hội thoại trước:")
-            for m in history
-        )
-
-        # Chỉ tóm tắt khi có đủ 5 đoạn hội thoại (user+assistant)
         # Đếm số đoạn hội thoại (cặp user + assistant)
         def count_turns(history):
             count = 0
@@ -78,88 +75,80 @@ async def summarize_chat_history(
         num_turns = count_turns(history)
         logger.debug(f"Number of user+assistant turns: {num_turns}")
 
-        if num_turns < max_history_length:
-            logger.debug("No summarization needed: not enough turns")
+        # Kiểm tra nếu lịch sử đã được tóm tắt
+        has_summary = any(
+            m["role"] == "system" and m["content"].startswith("Context của cuộc hội thoại:")
+            for m in history
+        )
+        logger.debug(f"Has existing summary: {has_summary}")
+
+        # Chỉ bỏ qua tóm tắt nếu chưa vượt ngưỡng
+        if has_summary and num_turns < max_history_length and total_chars < max_total_chars:
+            logger.debug("No summarization needed: history already summarized and within limits")
             return history
 
-        # Nếu history chỉ còn 1 message system context thì không tóm tắt nữa
-        if (
-            len(history) == 1
-            and history[0]["role"] == "system"
-            and (
-                history[0]["content"].startswith("Context của cuộc hội thoại")
-                or history[0]["content"].startswith("Context từ cuộc hội thoại trước:")
-            )
-        ):
-            logger.debug("No summarization needed: only context message present")
+        # Tóm tắt nếu số đoạn hội thoại >= max_history_length hoặc tổng ký tự >= max_total_chars
+        if num_turns < max_history_length and total_chars < max_total_chars:
+            logger.debug("No summarization needed: not enough turns or characters")
             return history
 
-        # Tìm vị trí context system gần nhất (nếu có)
-        context_idx = -1
-        for idx, m in enumerate(history):
-            if m["role"] == "system" and (
-                m["content"].startswith("Context của cuộc hội thoại") or
-                m["content"].startswith("Context từ cuộc hội thoại trước:")
-            ):
-                context_idx = idx
+        # Kiểm tra url_local
+        if not url_local or url_local.strip() == "":
+            logger.error("url_local is None or empty, cannot proceed with summarization")
+            return history[-max_history_length*2:] if history else []  # Giữ 2 lần max_history_length để bảo toàn cặp user+assistant
 
-        # Các đoạn cần tóm tắt là trước context system gần nhất (hoặc toàn bộ nếu chưa từng tóm tắt)
-        history_to_summarize = history[:context_idx] if context_idx != -1 else history
-        history_after_context = history[context_idx+1:] if context_idx != -1 else []
-
-        # Đếm số đoạn user+assistant trong phần cần tóm tắt
-        def count_turns(hist):
-            count = 0
-            i = 0
-            while i < len(hist) - 1:
-                if hist[i]["role"] == "user" and hist[i+1]["role"] == "assistant":
-                    count += 1
-                    i += 2
-                else:
-                    i += 1
-            return count
-        num_turns = count_turns(history_to_summarize)
-        logger.debug(f"Number of user+assistant turns to summarize: {num_turns}")
-        if num_turns < max_history_length:
-            logger.debug("No summarization needed: not enough turns before context")
-            return history
-
-        # Nếu history_to_summarize rỗng, không tóm tắt
-        if not history_to_summarize:
-            logger.debug("No summarization needed: nothing to summarize")
-            return history
-
-        # Tóm tắt phần trước context, giữ lại phần sau context
-        history_str = "\n".join([f"{m['role']}: {m['content']}" for m in history_to_summarize])
+        # Tóm tắt lịch sử
+        history_str = "\n".join([f"{m['role']}: {m['content']}" for m in history])
         summary_prompt = _create_summary_prompt(history_str)
 
         summary = ""
-        async for chunk in stream_response_history(
-            session=session,
-            messages=summary_prompt,
-            model="4T-Small:latest",
-            temperature=0.3,
-            max_tokens=-1,
-            url_local=url_local,
-        ):
-            if isinstance(chunk, bytes):
-                chunk = chunk.decode('utf-8')
-            try:
-                chunk_data = json.loads(chunk)
-                if chunk_data.get("message", {}).get("content"):
-                    summary += chunk_data["message"]["content"]
-            except json.JSONDecodeError:
-                continue
+        try:
+            async for chunk in stream_response_history(
+                session=session,
+                messages=summary_prompt,
+                model="4T-Small:latest",
+                temperature=0.3,
+                max_tokens=500,
+                url_local=url_local,
+            ):
+                logger.debug(f"Raw chunk received: {chunk}")
+                if isinstance(chunk, bytes):
+                    chunk = chunk.decode('utf-8')
+                try:
+                    if isinstance(chunk, str):
+                        chunk_data = json.loads(chunk)
+                        content = chunk_data.get("message", {}).get("content", "")
+                        if content:
+                            summary += content
+                        else:
+                            logger.warning(f"No content in chunk: {chunk}")
+                    else:
+                        logger.warning(f"Unexpected chunk type: {type(chunk)}")
+                except json.JSONDecodeError as e:
+                    logger.warning(f"Failed to parse chunk: {chunk}, error: {str(e)}")
+                    continue
+                except Exception as e:
+                    logger.warning(f"Error processing chunk: {str(e)}")
+                    continue
+        except aiohttp.ClientError as e:
+            logger.error(f"Network error during stream_response_history: {str(e)}")
+            return history[-max_history_length*2:] if history else []
 
         if not summary.strip():
-            logger.warning("Empty summary generated, falling back to original history")
-            return history
+            logger.warning("Empty summary generated, falling back to last max_history_length messages")
+            return history[-max_history_length*2:] if history else []
 
-        # Kết quả: context system mới + các đoạn sau context cũ
+        # Kiểm tra độ dài tóm tắt
+        if len(summary.split()) < 50:
+            logger.warning(f"Summary too short ({len(summary.split())} words), falling back to last max_history_length messages")
+            return history[-max_history_length*2:] if history else []
+
+        # Tạo lịch sử mới với tin nhắn system context
         summarized_history = [{
-            "role": "system",
-            "content": f"Context của cuộc hội thoại:\n{summary.strip()}"
-        }] + history_after_context
+            "role": "assistant",
+            "content": f"Context của cuộc hội thoại (history):\n{summary.strip()}"
+        }]
+        logger.debug(f"Generated summary: {summary.strip()}")
 
         if storage:
             await storage.clear_history(chat_ai_id)
@@ -171,4 +160,4 @@ async def summarize_chat_history(
 
     except Exception as e:
         logger.error(f"Error in summarize_chat_history: {str(e)}")
-        return history[-max_history_length:] if history else []
+        return history[-max_history_length*2:] if history else []

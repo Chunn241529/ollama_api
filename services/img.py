@@ -13,7 +13,7 @@ from datetime import datetime
 
 import requests
 from services.chat import stream_response_normal
-from config.payload_img import get_payload
+from config.payload_img import get_payload, get_payload_inpaint
 from services.chat.history_manager import summarize_chat_history
 from services.chat.history_storage import ListHistoryStorage
 
@@ -30,34 +30,17 @@ STORAGE_OUTPUT_DIR = os.path.abspath("storage/img/output")
 COMFY_OUTPUT_DIR = os.path.abspath("modules/ComfyUI/output")
 TEST_STORAGE = ListHistoryStorage(file_path="storage/log/wrap_history.json")
 
-# tạo hàm detect cotent nsfw
+# Define function to detect NSFW content
 def detect_content_nsfw(content):
     """
     Detect if the content is NSFW (Not Safe For Work) based on specific keywords.
     Returns True if NSFW, False otherwise.
     """
     nsfw_keywords = [
-        "nsfw",     # General NSFW keyword
-        "porn",     # Pornographic content
-        "sex",      # Sexual content
-        "nude",     # Nude content
-        "sexy",     # Sexually suggestive content
-        "hentai",   # Hentai content
-        "naked",    # Naked content
-        # thêm tiếng việt
-        "khỏa thân",  # Vietnamese for "naked
-        "khiêu dâm",  # Vietnamese for
-        "cởi đồ",    # Vietnamese for "underwear"
-        "lồn",      # Vietnamese for "nude"
-        "vú",        # Vietnamese for "breast"
-        "dương vật",  # Vietnamese
-        "âm đạo",    # Vietnamese for
-        "vú em",    # Vietnamese for "breast"
-        "ngực",     # Vietnamese for "chest"
-        "trẻ em",  # Vietnamese for "child"
-        "trẻ vị thành niên",  # Vietnamese for "teenager"
+        "nsfw", "porn", "sex", "nude", "sexy", "hentai", "naked",
+        "khỏa thân", "khiêu dâm", "cởi đồ", "lồn", "vú", "dương vật",
+        "âm đạo", "vú em", "ngực", "trẻ em", "trẻ vị thành niên",
     ]
-    # Check if any NSFW keyword is present in the content
     for keyword in nsfw_keywords:
         if keyword in content.lower():
             logger.info(f"Detected NSFW content: {keyword} in {content}")
@@ -70,9 +53,7 @@ def random_13_digits():
 
 async def generate_prompt(simple_prompt, model="4T", temperature=0.1, max_attempts=3):
     """Generate an enhanced prompt using Ollama, analyzing the idea in English with chat history."""
-
     async with aiohttp.ClientSession() as session:
-
         # Fetch and summarize chat history once
         try:
             history = await TEST_STORAGE.get_history()
@@ -83,12 +64,12 @@ async def generate_prompt(simple_prompt, model="4T", temperature=0.1, max_attemp
                 storage=TEST_STORAGE,
             )
         except Exception as e:
-            logger.error("Failed to fetch or summarize history: %s", e)
+            logger.error(f"Failed to fetch or summarize history: {e}")
             history = []  # Fallback to empty history if fetching fails
 
         # Step 1: Analyze the input prompt
         try:
-            logger.info("[DEBUG] Analyzing simple_prompt: %r", simple_prompt)
+            logger.info(f"[DEBUG] Analyzing simple_prompt: {simple_prompt!r}")
             analysis_prompt = (
                 f"Analyze the following request in English, considering its intent and details: '{simple_prompt}'.\n"
                 "Provide a concise analysis focusing on the main subject, context, and any implied details."
@@ -107,26 +88,22 @@ async def generate_prompt(simple_prompt, model="4T", temperature=0.1, max_attemp
                 try:
                     chunk_data = json.loads(chunk.strip())
                     if chunk_data.get("type") == "error":
-                        logger.error(
-                            "Ollama error in chunk: %s", chunk_data.get("error")
-                        )
+                        logger.error(f"Ollama error in chunk: {chunk_data.get('error')}")
                         return None
                     if chunk_data.get("type") == "text" and "message" in chunk_data:
                         content = chunk_data["message"].get("content", "")
                         res_analys += content
                 except json.JSONDecodeError as e:
-                    logger.error(
-                        "Failed to parse chunk as JSON: %s, error: %s", chunk, e
-                    )
+                    logger.error(f"Failed to parse chunk as JSON: {chunk}, error: {e}")
                     continue
 
             if not res_analys.strip():
                 logger.warning("No analysis result received, using original prompt")
                 res_analys = simple_prompt
-            logger.info("[DEBUG] Analysis result: %r", res_analys)
+            logger.info(f"[DEBUG] Analysis result: {res_analys!r}")
 
         except Exception as e:
-            logger.error("Error during prompt analysis: %s", e)
+            logger.error(f"Error during prompt analysis: {e}")
             res_analys = simple_prompt  # Fallback to original prompt if analysis fails
 
         # Step 2: Generate the enhanced prompt using the analysis
@@ -172,10 +149,7 @@ async def generate_prompt(simple_prompt, model="4T", temperature=0.1, max_attemp
         for attempt in range(max_attempts):
             try:
                 logger.debug(
-                    "Attempt %d/%d to generate prompt with model %s",
-                    attempt + 1,
-                    max_attempts,
-                    model,
+                    f"Attempt {attempt + 1}/{max_attempts} to generate prompt with model {model}"
                 )
                 full_response = ""
                 async for chunk in stream_response_normal(
@@ -188,17 +162,13 @@ async def generate_prompt(simple_prompt, model="4T", temperature=0.1, max_attemp
                     try:
                         chunk_data = json.loads(chunk.strip())
                         if chunk_data.get("type") == "error":
-                            logger.error(
-                                "Ollama error in chunk: %s", chunk_data.get("error")
-                            )
+                            logger.error(f"Ollama error in chunk: {chunk_data.get('error')}")
                             return None
                         if chunk_data.get("type") == "text" and "message" in chunk_data:
                             content = chunk_data["message"].get("content", "")
                             full_response += content
                     except json.JSONDecodeError as e:
-                        logger.error(
-                            "Failed to parse chunk as JSON: %s, error: %s", chunk, e
-                        )
+                        logger.error(f"Failed to parse chunk as JSON: {chunk}, error: {e}")
                         continue
 
                 if not full_response.strip():
@@ -219,34 +189,25 @@ async def generate_prompt(simple_prompt, model="4T", temperature=0.1, max_attemp
                         for key in ["positive_prompt", "width", "height"]
                     ):
                         logger.error(
-                            "Response is not in expected JSON format: %s",
-                            cleaned_response,
+                            f"Response is not in expected JSON format: {cleaned_response}"
                         )
                         continue
-                    logger.info("Generated prompt JSON: %s", response_json)
+                    logger.info(f"Generated prompt JSON: {response_json}")
                     return response_json
                 except json.JSONDecodeError as e:
                     logger.error(
-                        "Failed to parse cleaned response as JSON: %s, error: %s",
-                        cleaned_response,
-                        e,
+                        f"Failed to parse cleaned response as JSON: {cleaned_response}, error: {e}"
                     )
                     continue
             except Exception as e:
                 logger.error(
-                    "Failed to generate prompt (attempt %d/%d): %s",
-                    attempt + 1,
-                    max_attempts,
-                    e,
+                    f"Failed to generate prompt (attempt {attempt + 1}/{max_attempts}): {e}"
                 )
 
         # Fallback if all attempts fail
         logger.warning(
-            "All attempts (%d) failed to generate prompt for input '%s'. Using fallback with analysis result or default.",
-            max_attempts,
-            simple_prompt,
+            f"All attempts ({max_attempts}) failed to generate prompt for input '{simple_prompt}'. Using fallback with analysis result or default."
         )
-        # Use res_analys if available and non-empty, otherwise fallback to simple_prompt
         fallback_prompt = (
             res_analys.strip()
             if "res_analys" in locals() and res_analys.strip()
@@ -303,7 +264,6 @@ async def generate_prompt(simple_prompt, model="4T", temperature=0.1, max_attemp
             "height": height,
         }
 
-
 async def generate_image(prompt_text="", width=768, height=1024, output_dir="ComfyUI"):
     """
     Hàm tạo ảnh sử dụng API ComfyUI với payload.
@@ -321,14 +281,11 @@ async def generate_image(prompt_text="", width=768, height=1024, output_dir="Com
     url = "http://127.0.0.1:8188/api/prompt"
     base_url = "http://localhost:2401"  # Base URL cho image_url
 
-
-
     # Generate prompt using Ollama
     prompt_data = await generate_prompt(prompt_text)
     if prompt_data is None:
         logger.error("Failed to generate prompt data.")
         return {"error": "Failed to generate prompt data."}
-
 
     # Extract values from prompt_data
     positive_prompt = prompt_data.get("positive_prompt")
@@ -339,7 +296,7 @@ async def generate_image(prompt_text="", width=768, height=1024, output_dir="Com
         logger.error("No positive prompt extracted from response.")
         return {"error": "No positive prompt extracted from response."}
 
-    # Check if the input prompt is detect_content_nsfw
+    # Check if the input prompt is NSFW
     if detect_content_nsfw(positive_prompt):
         logger.warning("Input prompt contains NSFW content, skipping generation.")
         return {
@@ -359,31 +316,23 @@ async def generate_image(prompt_text="", width=768, height=1024, output_dir="Com
         try:
             # Check ComfyUI output directory
             if not os.path.exists(COMFY_OUTPUT_DIR):
-                logger.error(
-                    "ComfyUI output directory does not exist: %s", COMFY_OUTPUT_DIR
-                )
+                logger.error(f"ComfyUI output directory does not exist: {COMFY_OUTPUT_DIR}")
                 return {
                     "error": f"ComfyUI output directory {COMFY_OUTPUT_DIR} does not exist."
                 }
             if not os.access(COMFY_OUTPUT_DIR, os.R_OK | os.W_OK):
-                logger.error(
-                    "No read/write permissions for directory: %s", COMFY_OUTPUT_DIR
-                )
+                logger.error(f"No read/write permissions for directory: {COMFY_OUTPUT_DIR}")
                 return {"error": f"No read/write permissions for {COMFY_OUTPUT_DIR}."}
 
             # Check storage output directory
             if not os.path.exists(STORAGE_OUTPUT_DIR):
                 os.makedirs(STORAGE_OUTPUT_DIR)
             if not os.access(STORAGE_OUTPUT_DIR, os.R_OK | os.W_OK):
-                logger.error(
-                    "No read/write permissions for directory: %s", STORAGE_OUTPUT_DIR
-                )
+                logger.error(f"No read/write permissions for directory: {STORAGE_OUTPUT_DIR}")
                 return {"error": f"No read/write permissions for {STORAGE_OUTPUT_DIR}."}
 
             logger.info(
-                "Checking output directories - ComfyUI: %s, Storage: %s",
-                COMFY_OUTPUT_DIR,
-                STORAGE_OUTPUT_DIR,
+                f"Checking output directories - ComfyUI: {COMFY_OUTPUT_DIR}, Storage: {STORAGE_OUTPUT_DIR}"
             )
 
             # Send POST request to API
@@ -392,9 +341,7 @@ async def generate_image(prompt_text="", width=768, height=1024, output_dir="Com
                 response.raise_for_status()  # Check for HTTP errors
                 result = await response.json()
                 logger.info(
-                    "API Response: %s, Time taken: %s seconds",
-                    result,
-                    time.time() - start_time,
+                    f"API Response: {result}, Time taken: {time.time() - start_time} seconds"
                 )
 
                 # Wait for the new image to appear
@@ -432,8 +379,7 @@ async def generate_image(prompt_text="", width=768, height=1024, output_dir="Com
                         if sequence_number == -1:
                             latest_image = max(new_images, key=os.path.getmtime)
                             logger.warning(
-                                "No sequence number found, using most recent: %s",
-                                latest_image,
+                                f"No sequence number found, using most recent: {latest_image}"
                             )
 
                         # Create a unique filename with timestamp
@@ -443,15 +389,22 @@ async def generate_image(prompt_text="", width=768, height=1024, output_dir="Com
                         storage_path = os.path.join(STORAGE_OUTPUT_DIR, new_filename)
 
                         # Copy the image to storage
-                        shutil.move(latest_image, storage_path)
-                        logger.info("Image copied to storage: %s", storage_path)
+                        try:
+                            shutil.move(latest_image, storage_path)
+                            logger.info(f"Image copied to storage: {storage_path}")
+                        except Exception as e:
+                            logger.error(f"Failed to move image to storage: {e}")
+                            return {"error": f"Failed to move image to storage: {e}"}
 
-                        # Đặt quyền tệp
-                        os.chmod(storage_path, 0o644)
+                        # Set file permissions
+                        try:
+                            os.chmod(storage_path, 0o644)
+                        except PermissionError as e:
+                            logger.error(f"Failed to set permissions for {storage_path}: {e}")
+                            return {"error": f"Failed to set permissions for {storage_path}: {e}"}
+
                         if not os.access(storage_path, os.R_OK):
-                            logger.error(
-                                "No read permissions for image: %s", storage_path
-                            )
+                            logger.error(f"No read permissions for image: {storage_path}")
                             return {"error": f"No read permissions for {storage_path}."}
 
                         # Generate absolute URL for the image
@@ -464,26 +417,200 @@ async def generate_image(prompt_text="", width=768, height=1024, output_dir="Com
                             "mime_type": f"image/{mime_type}",
                         }
                         await TEST_STORAGE.add_message(
-                            role="assistant", content=json.dumps(result), chat_ai_id = 0
+                            role="assistant", content=json.dumps(result), chat_ai_id=0
                         )
-                        logger.info("Returning image result: %s", result)
+                        logger.info(f"Returning image result: {result}")
                         return result
 
                     await asyncio.sleep(check_interval)
                     elapsed_time += check_interval
 
                 logger.warning(
-                    "No new images found in %s after %d seconds",
-                    COMFY_OUTPUT_DIR,
-                    max_wait_time,
+                    f"No new images found in {COMFY_OUTPUT_DIR} after {max_wait_time} seconds"
                 )
                 return {
                     "error": f"No new images found in {COMFY_OUTPUT_DIR} after {max_wait_time} seconds."
                 }
 
         except aiohttp.ClientError as e:
-            logger.error("Error occurred during API request: %s", e)
+            logger.error(f"Error occurred during API request: {e}")
             return {"error": f"API request failed: {str(e)}"}
         except Exception as e:
-            logger.error("Unexpected error: %s", e)
+            logger.error(f"Unexpected error: {e}")
+            return {"error": f"Unexpected error: {str(e)}"}
+
+async def inpaint_image(prompt_text="", image_path="", output_dir="ComfyUI"):
+    """
+    Hàm tạo ảnh inpaint sử dụng API ComfyUI với payload.
+
+    Args:
+        prompt_text (str): Mô tả tích cực cho ảnh (ví dụ: "a cute cat").
+        image_path (str): Đường dẫn đến ảnh đầu vào.
+        mask_path (str): Đường dẫn đến ảnh mask.
+        output_dir (str): Thư mục lưu ảnh đầu ra (không sử dụng, giữ cho tương thích).
+
+    Returns:
+        dict: {"image_url": str, "image_path": str, "mime_type": str} hoặc {"error": str} nếu có lỗi.
+    """
+    # API endpoint
+    url = "http://127.0.0.1:8188/api/prompt"
+    base_url = "http://localhost:2401"  # Base URL cho image_url
+
+    # Generate prompt using Ollama
+    prompt_data = await generate_prompt(prompt_text)
+    if prompt_data is None:
+        logger.error("Failed to generate prompt data.")
+        return {"error": "Failed to generate prompt data."}
+
+    # Extract positive prompt
+    positive_prompt = prompt_data.get("positive_prompt")
+    if not positive_prompt:
+        logger.error("No positive prompt extracted from response.")
+        return {"error": "No positive prompt extracted from response."}
+
+    # Check if the input prompt is NSFW
+    if detect_content_nsfw(positive_prompt):
+        logger.warning("Input prompt contains NSFW content, skipping generation.")
+        return {
+            "positive_prompt": "NSFW content detected, generation skipped.",
+            "width": 512,
+            "height": 512,
+        }
+
+    # Get payload
+    payload = get_payload_inpaint(
+        positive_prompt=f"score_9,score_8_up,score_7_up, {positive_prompt}",
+        image_path=image_path,
+    )
+
+    async with aiohttp.ClientSession() as session:
+        try:
+            # Check ComfyUI output directory
+            if not os.path.exists(COMFY_OUTPUT_DIR):
+                logger.error(f"ComfyUI output directory does not exist: {COMFY_OUTPUT_DIR}")
+                return {
+                    "error": f"ComfyUI output directory {COMFY_OUTPUT_DIR} does not exist."
+                }
+            if not os.access(COMFY_OUTPUT_DIR, os.R_OK | os.W_OK):
+                logger.error(f"No read/write permissions for directory: {COMFY_OUTPUT_DIR}")
+                return {"error": f"No read/write permissions for {COMFY_OUTPUT_DIR}."}
+
+            # Check storage output directory
+            if not os.path.exists(STORAGE_OUTPUT_DIR):
+                os.makedirs(STORAGE_OUTPUT_DIR)
+            if not os.access(STORAGE_OUTPUT_DIR, os.R_OK | os.W_OK):
+                logger.error(f"No read/write permissions for directory: {STORAGE_OUTPUT_DIR}")
+                return {"error": f"No read/write permissions for {STORAGE_OUTPUT_DIR}."}
+
+            # Validate image and mask paths
+            if not os.path.exists(image_path):
+                logger.error(f"Input image does not exist: {image_path}")
+                return {"error": f"Input image {image_path} does not exist."}
+
+            logger.info(
+                f"Checking output directories - ComfyUI: {COMFY_OUTPUT_DIR}, Storage: {STORAGE_OUTPUT_DIR}"
+            )
+
+            # Send POST request to API
+            start_time = time.time()
+            async with session.post(url, json=payload) as response:
+                response.raise_for_status()  # Check for HTTP errors
+                result = await response.json()
+                logger.info(
+                    f"API Response: {result}, Time taken: {time.time() - start_time} seconds"
+                )
+
+                # Wait for the new image to appear
+                image_pattern = os.path.join(COMFY_OUTPUT_DIR, "*.*")
+                initial_images = set(glob.glob(image_pattern))
+                max_wait_time = 300  # Fixed wait time for inpainting
+                check_interval = 0.5
+                elapsed_time = 0
+
+                while elapsed_time < max_wait_time:
+                    current_images = set(glob.glob(image_pattern))
+                    new_images = current_images - initial_images
+                    if new_images:
+                        # Filter valid image extensions
+                        valid_extensions = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+                        new_images = {
+                            img
+                            for img in new_images
+                            if os.path.splitext(img)[1].lower() in valid_extensions
+                        }
+                        if not new_images:
+                            await asyncio.sleep(check_interval)
+                            elapsed_time += check_interval
+                            continue
+
+                        # Extract sequence number from filenames
+                        def get_sequence_number(image_path):
+                            filename = os.path.basename(image_path)
+                            match = re.search(r"(\d+)", filename)
+                            return int(match.group(1)) if match else -1
+
+                        # Select image with highest sequence number
+                        latest_image = max(new_images, key=get_sequence_number)
+                        sequence_number = get_sequence_number(latest_image)
+                        if sequence_number == -1:
+                            latest_image = max(new_images, key=os.path.getmtime)
+                            logger.warning(
+                                f"No sequence number found, using most recent: {latest_image}"
+                            )
+
+                        # Create a unique filename with timestamp
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        ext = os.path.splitext(latest_image)[1].lower()
+                        new_filename = f"inpaint_{timestamp}_{random_13_digits()}{ext}"
+                        storage_path = os.path.join(STORAGE_OUTPUT_DIR, new_filename)
+
+                        # Copy the image to storage
+                        try:
+                            shutil.move(latest_image, storage_path)
+                            logger.info(f"Inpainted image copied to storage: {storage_path}")
+                        except Exception as e:
+                            logger.error(f"Failed to move inpainted image to storage: {e}")
+                            return {"error": f"Failed to move inpainted image to storage: {e}"}
+
+                        # Set file permissions
+                        try:
+                            os.chmod(storage_path, 0o644)
+                        except PermissionError as e:
+                            logger.error(f"Failed to set permissions for {storage_path}: {e}")
+                            return {"error": f"Failed to set permissions for {storage_path}: {e}"}
+
+                        if not os.access(storage_path, os.R_OK):
+                            logger.error(f"No read permissions for image: {storage_path}")
+                            return {"error": f"No read permissions for {storage_path}."}
+
+                        # Generate absolute URL for the image
+                        image_url = f"{base_url}/storage/img/output/{new_filename}"
+                        mime_type = "jpeg" if ext in [".jpg", ".jpeg"] else ext[1:]
+
+                        result = {
+                            "image_url": image_url,
+                            "image_path": storage_path,
+                            "mime_type": f"image/{mime_type}",
+                        }
+                        await TEST_STORAGE.add_message(
+                            role="assistant", content=json.dumps(result), chat_ai_id=0
+                        )
+                        logger.info(f"Returning inpainted image result: {result}")
+                        return result
+
+                    await asyncio.sleep(check_interval)
+                    elapsed_time += check_interval
+
+                logger.warning(
+                    f"No new images found in {COMFY_OUTPUT_DIR} after {max_wait_time} seconds"
+                )
+                return {
+                    "error": f"No new images found in {COMFY_OUTPUT_DIR} after {max_wait_time} seconds."
+                }
+
+        except aiohttp.ClientError as e:
+            logger.error(f"Error occurred during API request: {e}")
+            return {"error": f"API request failed: {str(e)}"}
+        except Exception as e:
+            logger.error(f"Unexpected error: {e}")
             return {"error": f"Unexpected error: {str(e)}"}

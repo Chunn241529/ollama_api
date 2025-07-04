@@ -30,6 +30,16 @@ if [ "$LANGUAGE" = "EN" ]; then
     MSG_COMPLETE="Installation completed successfully!"
     MSG_SUMMARY="Installation Summary"
     MSG_PRESS_ENTER="Press Enter to continue..."
+    MSG_CHECK_GIT="Checking for Git..."
+    MSG_GIT_FOUND="Git already installed."
+    MSG_GIT_NOT_FOUND="Git not found. Installing..."
+    MSG_INSTALL_GIT_DEBIAN="Installing Git on Debian/Ubuntu..."
+    MSG_INSTALL_GIT_CENTOS="Installing Git on CentOS/RHEL..."
+    MSG_INSTALL_GIT_MAC="Installing Git on macOS via Homebrew..."
+    MSG_GIT_SUCCESS="Git installed successfully."
+    MSG_GIT_FAIL="Failed to install Git."
+    MSG_CLONE_COMFYUI="Cloning ComfyUI repository..."
+    MSG_CLONE_COMFYUI_FAIL="Failed to clone ComfyUI repository."
 else
     MSG_CHECK_OS="Đang kiểm tra hệ điều hành..."
     MSG_OS_DETECTED="Hệ điều hành: %s (%s)"
@@ -55,6 +65,16 @@ else
     MSG_COMPLETE="Cài đặt hoàn tất!"
     MSG_SUMMARY="Tóm tắt cài đặt"
     MSG_PRESS_ENTER="Nhấn Enter để thoát..."
+    MSG_CHECK_GIT="Đang kiểm tra Git..."
+    MSG_GIT_FOUND="Git đã được cài đặt."
+    MSG_GIT_NOT_FOUND="Git không được tìm thấy. Đang tiến hành cài đặt..."
+    MSG_INSTALL_GIT_DEBIAN="Cài đặt Git trên Debian/Ubuntu..."
+    MSG_INSTALL_GIT_CENTOS="Cài đặt Git trên CentOS/RHEL..."
+    MSG_INSTALL_GIT_MAC="Cài đặt Git trên macOS qua Homebrew..."
+    MSG_GIT_SUCCESS="Cài đặt Git thành công."
+    MSG_GIT_FAIL="Không thể cài đặt Git."
+    MSG_CLONE_COMFYUI="Đang clone kho lưu trữ ComfyUI..."
+    MSG_CLONE_COMFYUI_FAIL="Lỗi khi clone kho lưu trữ ComfyUI."
 fi
 
 # Màu sắc và biểu tượng
@@ -92,14 +112,59 @@ show_progress() {
 # Tóm tắt trạng thái
 SUMMARY=()
 
-# Kiểm tra công cụ phụ thuộc
+# Kiểm tra và cài đặt công cụ phụ thuộc
 check_dependencies() {
     show_progress "$MSG_CHECK_OS" 10
-    for cmd in curl git; do
-        if ! command -v "$cmd" >/dev/null 2>&1; then
-            log_error "Công cụ $cmd không được tìm thấy. Vui lòng cài đặt trước khi tiếp tục."
+
+    # Kiểm tra và cài đặt Git
+    show_progress "$MSG_CHECK_GIT" 10
+    if command -v git >/dev/null 2>&1; then
+        log_info "$MSG_GIT_FOUND"
+        SUMMARY+=("Git: ${GREEN}${CHECKMARK}${NC}")
+    else
+        log_warn "$MSG_GIT_NOT_FOUND"
+        show_progress "$MSG_GIT_NOT_FOUND" 20
+        case "$OS" in
+            Linux)
+                if command -v apt-get >/dev/null 2>&1; then
+                    log_info "$MSG_INSTALL_GIT_DEBIAN"
+                    show_progress "$MSG_INSTALL_GIT_DEBIAN" 30
+                    sudo apt-get update
+                    sudo apt-get install -y git
+                elif command -v yum >/dev/null 2>&1; then
+                    log_info "$MSG_INSTALL_GIT_CENTOS"
+                    show_progress "$MSG_INSTALL_GIT_CENTOS" 30
+                    sudo yum install -y git
+                else
+                    log_error "Hệ thống Linux không hỗ trợ (không tìm thấy apt hoặc yum)."
+                fi
+                ;;
+            Darwin)
+                if command -v brew >/dev/null 2>&1; then
+                    log_info "$MSG_INSTALL_GIT_MAC"
+                    show_progress "$MSG_INSTALL_GIT_MAC" 30
+                    brew install git
+                else
+                    log_error "Homebrew không được cài đặt. Vui lòng cài Homebrew trước: https://brew.sh/"
+                fi
+                ;;
+            *)
+                log_error "Hệ điều hành không được hỗ trợ: $OS"
+                ;;
+        esac
+        if command -v git >/dev/null 2>&1; then
+            log_info "$MSG_GIT_SUCCESS"
+            SUMMARY+=("Git: ${GREEN}${CHECKMARK}${NC}")
+        else
+            log_error "$MSG_GIT_FAIL"
+            SUMMARY+=("Git: ${RED}${CROSS}${NC}")
         fi
-    done
+    fi
+
+    # Kiểm tra curl
+    if ! command -v curl >/dev/null 2>&1; then
+        log_error "Công cụ curl không được tìm thấy. Vui lòng cài đặt trước khi tiếp tục."
+    fi
     SUMMARY+=("Dependencies: ${GREEN}${CHECKMARK}${NC}")
 }
 
@@ -257,13 +322,11 @@ Pillow
 scipy
 tqdm
 psutil
-
 kornia>=0.7.1
 spandrel
 soundfile
 av>=14.2.0
 pydantic~=2.0
-
 EOL
     log_info "$MSG_CREATE_REQS_COMFYUI"
     SUMMARY+=("Requirements-Comfyui.txt: ${GREEN}${CHECKMARK}${NC}")
@@ -271,13 +334,26 @@ EOL
 
 # Cài đặt các gói
 install_packages() {
-    show_progress "$MSG_INSTALL_REQS" 30
+    # Clone ComfyUI repository
+    show_progress "$MSG_CLONE_COMFYUI" 20
+    mkdir -p modules
+    cd modules
+    if [ -d "ComfyUI" ]; then
+        log_info "ComfyUI repository already exists."
+        SUMMARY+=("ComfyUI Clone: ${GREEN}${CHECKMARK}${NC}")
+    else
+        git clone https://github.com/comfyanonymous/ComfyUI.git || { log_error "$MSG_CLONE_COMFYUI_FAIL"; SUMMARY+=("ComfyUI Clone: ${RED}${CROSS}${NC}"); }
+        log_info "$MSG_CLONE_COMFYUI"
+        SUMMARY+=("ComfyUI Clone: ${GREEN}${CHECKMARK}${NC}")
+    fi
+    cd ..
 
+    # Install packages
+    show_progress "$MSG_INSTALL_REQS" 30
     pip install -U -r requirements.txt || { log_error "$MSG_REQS_FAIL"; SUMMARY+=("Packages: ${RED}${CROSS}${NC}"); }
     log_info "Cài đặt PyTorch..."
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
     pip install -U -r requirements-comfyui.txt || { log_error "$MSG_REQS_FAIL"; SUMMARY+=("Packages: ${RED}${CROSS}${NC}"); }
-
     log_info "$MSG_INSTALL_REQS"
     SUMMARY+=("Packages: ${GREEN}${CHECKMARK}${NC}")
 }
@@ -290,17 +366,13 @@ show_summary() {
     echo -e "${GREEN}${CHECKMARK} $MSG_COMPLETE${NC}" >&3
     # Xóa file log
     if [ -f "$LOG_FILE" ]; then
-        # log_info "$(printf "$MSG_CLEANUP_LOG" "$LOG_FILE")"
         rm -f "$LOG_FILE"
     fi
-
     # Xóa file requirements.txt
     if [ -f "requirements.txt" ]; then
-        # log_info "$MSG_CLEANUP_REQS"
         rm -f "requirements.txt"
     fi
     if [ -f "requirements-comfyui.txt" ]; then
-        # log_info "$MSG_CLEANUP_REQS"
         rm -f "requirements-comfyui.txt"
     fi
 }

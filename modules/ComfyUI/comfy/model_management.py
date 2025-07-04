@@ -1052,7 +1052,7 @@ def pytorch_attention_flash_attention():
     global ENABLE_PYTORCH_ATTENTION
     if ENABLE_PYTORCH_ATTENTION:
         #TODO: more reliable way of checking for flash attention?
-        if is_nvidia(): #pytorch flash attention only works on Nvidia
+        if is_nvidia():
             return True
         if is_intel_xpu():
             return True
@@ -1068,7 +1068,7 @@ def force_upcast_attention_dtype():
     upcast = args.force_upcast_attention
 
     macos_version = mac_version()
-    if macos_version is not None and ((14, 5) <= macos_version < (16,)):  # black image bug on recent versions of macOS
+    if macos_version is not None and ((14, 5) <= macos_version):  # black image bug on recent versions of macOS, I don't think it's ever getting fixed
         upcast = True
 
     if upcast:
@@ -1287,6 +1287,13 @@ def supports_fp8_compute(device=None):
     if WINDOWS:
         if torch_version_numeric < (2, 4):
             return False
+
+    return True
+
+def extended_fp16_support():
+    # TODO: check why some models work with fp16 on newer torch versions but not on older
+    if torch_version_numeric < (2, 7):
+        return False
 
     return True
 

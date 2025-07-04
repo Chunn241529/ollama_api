@@ -5,4 +5,4 @@ requirements.txt
 .env
 fine_tuning
 storage
-modules/ComfyUI
+/ComfyUI/

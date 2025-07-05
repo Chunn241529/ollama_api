@@ -6,3 +6,6 @@ requirements.txt
 fine_tuning
 storage
 /ComfyUI/
+git.sh
+vietlott_results.pdf
+clean_full.sh

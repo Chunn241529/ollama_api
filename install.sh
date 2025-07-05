@@ -4,25 +4,15 @@ set -e  # Thoát ngay nếu có lỗi
 set -u  # Báo lỗi nếu biến không được định nghĩa
 
 # Thiết lập ngôn ngữ (mặc định tiếng Việt, có thể đổi sang EN qua biến LANGUAGE=EN)
-LANGUAGE=${LANGUAGE:-VN}
+LANGUAGE=${LANGUAGE:-EN}
 if [ "$LANGUAGE" = "EN" ]; then
     MSG_CHECK_OS="Checking operating system..."
     MSG_OS_DETECTED="Operating system: %s (%s)"
-    MSG_CHECK_PYTHON="Checking for Python 3.12..."
-    MSG_PYTHON_FOUND="Python 3.12 already installed."
-    MSG_PYTHON_NOT_FOUND="Python 3.12 not found. Installing..."
-    MSG_INSTALL_PYTHON_DEBIAN="Installing Python 3.12 on Debian/Ubuntu..."
-    MSG_INSTALL_PYTHON_CENTOS="Installing Python 3.12 on CentOS/RHEL..."
-    MSG_INSTALL_PYTHON_MAC="Installing Python 3.12 on macOS via Homebrew..."
-    MSG_PYTHON_SUCCESS="Python 3.12 installed successfully."
-    MSG_PYTHON_FAIL="Failed to install Python 3.12."
     MSG_VENV_EXISTS="Virtual environment already exists."
     MSG_CREATE_VENV="Creating new virtual environment..."
     MSG_VENV_FAIL="Failed to create virtual environment."
     MSG_ACTIVATE_VENV="Activating virtual environment..."
     MSG_ACTIVATE_VENV_FAIL="Failed to activate virtual environment."
-    MSG_UPDATE_PIP="Updating pip..."
-    MSG_PIP_FAIL="Failed to update pip."
     MSG_CREATE_REQS="Creating requirements.txt..."
     MSG_CREATE_REQS_COMFYUI="Creating requirements-comfyui.txt..."
     MSG_INSTALL_REQS="Installing packages from requirements.txt..."
@@ -30,34 +20,29 @@ if [ "$LANGUAGE" = "EN" ]; then
     MSG_COMPLETE="Installation completed successfully!"
     MSG_SUMMARY="Installation Summary"
     MSG_PRESS_ENTER="Press Enter to continue..."
-    MSG_CHECK_GIT="Checking for Git..."
-    MSG_GIT_FOUND="Git already installed."
-    MSG_GIT_NOT_FOUND="Git not found. Installing..."
-    MSG_INSTALL_GIT_DEBIAN="Installing Git on Debian/Ubuntu..."
-    MSG_INSTALL_GIT_CENTOS="Installing Git on CentOS/RHEL..."
-    MSG_INSTALL_GIT_MAC="Installing Git on macOS via Homebrew..."
-    MSG_GIT_SUCCESS="Git installed successfully."
-    MSG_GIT_FAIL="Failed to install Git."
+    MSG_CHECK_DEPS="Please install the following dependencies manually:"
+    MSG_CURL_INSTRUCT="Install curl from: https://curl.se/download.html"
+    MSG_PYTHON_INSTRUCT="Install Python 3.12 from: https://www.python.org/downloads/"
+    MSG_GIT_INSTRUCT="Install git from: https://git-scm.com/downloads"
+    MSG_OLLAMA_INSTRUCT="Install Ollama from: https://ollama.com/download"
+    MSG_CONFIRM_DEPS="Have you installed all dependencies? (Y/N): "
+    MSG_DEPS_NOT_CONFIRMED="Dependencies not confirmed. Exiting."
+    MSG_DOWNLOAD_CHECKPOINT="Downloading checkpoint model..."
+    MSG_CHECKPOINT_SUCCESS="Checkpoint model downloaded successfully."
+    MSG_CHECKPOINT_FAIL="Failed to download checkpoint model."
+    MSG_DOWNLOAD_LORAS="Downloading LoRA models..."
+    MSG_LORAS_SUCCESS="LoRA models downloaded successfully."
+    MSG_LORAS_FAIL="Failed to download LoRA models."
     MSG_CLONE_COMFYUI="Cloning ComfyUI repository..."
     MSG_CLONE_COMFYUI_FAIL="Failed to clone ComfyUI repository."
 else
     MSG_CHECK_OS="Đang kiểm tra hệ điều hành..."
     MSG_OS_DETECTED="Hệ điều hành: %s (%s)"
-    MSG_CHECK_PYTHON="Đang kiểm tra Python 3.12..."
-    MSG_PYTHON_FOUND="Python 3.12 đã được cài đặt."
-    MSG_PYTHON_NOT_FOUND="Python 3.12 không được tìm thấy. Đang tiến hành cài đặt..."
-    MSG_INSTALL_PYTHON_DEBIAN="Cài đặt Python 3.12 trên Debian/Ubuntu..."
-    MSG_INSTALL_PYTHON_CENTOS="Cài đặt Python 3.12 trên CentOS/RHEL..."
-    MSG_INSTALL_PYTHON_MAC="Cài đặt Python 3.12 trên macOS qua Homebrew..."
-    MSG_PYTHON_SUCCESS="Cài đặt Python 3.12 thành công."
-    MSG_PYTHON_FAIL="Không thể cài đặt Python 3.12."
     MSG_VENV_EXISTS="Môi trường ảo đã tồn tại."
     MSG_CREATE_VENV="Đang tạo mới môi trường ảo..."
     MSG_VENV_FAIL="Lỗi khi tạo môi trường ảo."
     MSG_ACTIVATE_VENV="Kích hoạt môi trường ảo..."
     MSG_ACTIVATE_VENV_FAIL="Lỗi khi kích hoạt môi trường ảo."
-    MSG_UPDATE_PIP="Cập nhật pip..."
-    MSG_PIP_FAIL="Lỗi khi cập nhật pip."
     MSG_CREATE_REQS="Tạo file requirements.txt..."
     MSG_CREATE_REQS_COMFYUI="Tạo file requirements-comfyui.txt..."
     MSG_INSTALL_REQS="Cài đặt các gói từ requirements.txt..."
@@ -65,15 +50,20 @@ else
     MSG_COMPLETE="Cài đặt hoàn tất!"
     MSG_SUMMARY="Tóm tắt cài đặt"
     MSG_PRESS_ENTER="Nhấn Enter để thoát..."
-    MSG_CHECK_GIT="Đang kiểm tra Git..."
-    MSG_GIT_FOUND="Git đã được cài đặt."
-    MSG_GIT_NOT_FOUND="Git không được tìm thấy. Đang tiến hành cài đặt..."
-    MSG_INSTALL_GIT_DEBIAN="Cài đặt Git trên Debian/Ubuntu..."
-    MSG_INSTALL_GIT_CENTOS="Cài đặt Git trên CentOS/RHEL..."
-    MSG_INSTALL_GIT_MAC="Cài đặt Git trên macOS qua Homebrew..."
-    MSG_GIT_SUCCESS="Cài đặt Git thành công."
-    MSG_GIT_FAIL="Không thể cài đặt Git."
-    MSG_CLONE_COMFYUI="Đang clone kho lưu trữ ComfyUI..."
+    MSG_CHECK_DEPS="Vui lòng cài đặt công cụ sau:"
+    MSG_CURL_INSTRUCT="Cài đặt curl từ: https://curl.se/download.html"
+    MSG_PYTHON_INSTRUCT="Cài đặt Python 3.12 từ: https://www.python.org/downloads/"
+    MSG_GIT_INSTRUCT="Cài đặt git từ: https://git-scm.com/downloads"
+    MSG_OLLAMA_INSTRUCT="Cài đặt Ollama từ: https://ollama.com/download"
+    MSG_CONFIRM_DEPS="Xác nhận đã cài (Y/N): "
+    MSG_DEPS_NOT_CONFIRMED="Phụ thuộc chưa được xác nhận. Thoát."
+    MSG_DOWNLOAD_CHECKPOINT="Đang tải checkpoint model..."
+    MSG_CHECKPOINT_SUCCESS="Tải checkpoint model thành công."
+    MSG_CHECKPOINT_FAIL="Không thể tải checkpoint model."
+    MSG_DOWNLOAD_LORAS="Đang tải LoRA models..."
+    MSG_LORAS_SUCCESS="Tải LoRA models thành công."
+    MSG_LORAS_FAIL="Không thể tải LoRA models."
+    MSG_CLONE_COMFYUI="Clone kho lưu trữ ComfyUI..."
     MSG_CLONE_COMFYUI_FAIL="Lỗi khi clone kho lưu trữ ComfyUI."
 fi
 
@@ -112,121 +102,42 @@ show_progress() {
 # Tóm tắt trạng thái
 SUMMARY=()
 
-# Kiểm tra và cài đặt công cụ phụ thuộc
-check_dependencies() {
+# Kiểm tra hệ điều hành
+check_os() {
     show_progress "$MSG_CHECK_OS" 10
-
-    # Kiểm tra và cài đặt Git
-    show_progress "$MSG_CHECK_GIT" 10
-    if command -v git >/dev/null 2>&1; then
-        log_info "$MSG_GIT_FOUND"
-        SUMMARY+=("Git: ${GREEN}${CHECKMARK}${NC}")
-    else
-        log_warn "$MSG_GIT_NOT_FOUND"
-        show_progress "$MSG_GIT_NOT_FOUND" 20
-        case "$OS" in
-            Linux)
-                if command -v apt-get >/dev/null 2>&1; then
-                    log_info "$MSG_INSTALL_GIT_DEBIAN"
-                    show_progress "$MSG_INSTALL_GIT_DEBIAN" 30
-                    sudo apt-get update
-                    sudo apt-get install -y git
-                elif command -v yum >/dev/null 2>&1; then
-                    log_info "$MSG_INSTALL_GIT_CENTOS"
-                    show_progress "$MSG_INSTALL_GIT_CENTOS" 30
-                    sudo yum install -y git
-                else
-                    log_error "Hệ thống Linux không hỗ trợ (không tìm thấy apt hoặc yum)."
-                fi
-                ;;
-            Darwin)
-                if command -v brew >/dev/null 2>&1; then
-                    log_info "$MSG_INSTALL_GIT_MAC"
-                    show_progress "$MSG_INSTALL_GIT_MAC" 30
-                    brew install git
-                else
-                    log_error "Homebrew không được cài đặt. Vui lòng cài Homebrew trước: https://brew.sh/"
-                fi
-                ;;
-            *)
-                log_error "Hệ điều hành không được hỗ trợ: $OS"
-                ;;
-        esac
-        if command -v git >/dev/null 2>&1; then
-            log_info "$MSG_GIT_SUCCESS"
-            SUMMARY+=("Git: ${GREEN}${CHECKMARK}${NC}")
-        else
-            log_error "$MSG_GIT_FAIL"
-            SUMMARY+=("Git: ${RED}${CROSS}${NC}")
-        fi
-    fi
-
-    # Kiểm tra curl
-    if ! command -v curl >/dev/null 2>&1; then
-        log_error "Công cụ curl không được tìm thấy. Vui lòng cài đặt trước khi tiếp tục."
-    fi
-    SUMMARY+=("Dependencies: ${GREEN}${CHECKMARK}${NC}")
+    OS=$(uname -s)
+    ARCH=$(uname -m)
+    log_info "$(printf "$MSG_OS_DETECTED" "$OS" "$ARCH")"
+    SUMMARY+=("OS Check: ${GREEN}${CHECKMARK}${NC}")
 }
 
-# Kiểm tra hệ điều hành
-OS=$(uname -s)
-ARCH=$(uname -m)
-log_info "$(printf "$MSG_OS_DETECTED" "$OS" "$ARCH")"
-
-# Hàm kiểm tra và cài đặt Python 3.12
-install_python() {
-    show_progress "$MSG_CHECK_PYTHON" 10
-    if command -v python3.12 >/dev/null 2>&1; then
-        log_info "$MSG_PYTHON_FOUND"
-        PYTHON_CMD="python3.12"
-        SUMMARY+=("Python 3.12: ${GREEN}${CHECKMARK}${NC}")
-        return 0
+# Hiển thị hướng dẫn cài đặt phụ thuộc
+check_dependencies() {
+    echo -e "${YELLOW}${MSG_CHECK_DEPS}${NC}" >&3
+    echo -e "${BLUE}│${NC} $MSG_CURL_INSTRUCT" >&3
+    echo -e "${BLUE}│${NC} $MSG_PYTHON_INSTRUCT" >&3
+    echo -e "${BLUE}│${NC} $MSG_GIT_INSTRUCT" >&3
+    echo -e "${BLUE}│${NC} $MSG_OLLAMA_INSTRUCT" >&3
+    echo -e "${BLUE} ${NC} $MSG_CONFIRM_DEPS" >&3
+    read -r response
+    if [[ "$response" != "Y" && "$response" != "y" ]]; then
+        log_error "$MSG_DEPS_NOT_CONFIRMED"
     fi
-
-    log_warn "$MSG_PYTHON_NOT_FOUND"
-    show_progress "$MSG_PYTHON_NOT_FOUND" 20
-
-    case "$OS" in
-        Linux)
-            if command -v apt-get >/dev/null 2>&1; then
-                log_info "$MSG_INSTALL_PYTHON_DEBIAN"
-                show_progress "$MSG_INSTALL_PYTHON_DEBIAN" 30
-                sudo apt-get update
-                sudo apt-get install -y software-properties-common
-                sudo add-apt-repository -y ppa:deadsnakes/ppa
-                sudo apt-get update
-                sudo apt-get install -y python3.12 python3.12-venv python3.12-dev
-            elif command -v yum >/dev/null 2>&1; then
-                log_info "$MSG_INSTALL_PYTHON_CENTOS"
-                show_progress "$MSG_INSTALL_PYTHON_CENTOS" 30
-                sudo yum install -y epel-release
-                sudo yum install -y python3.12
-            else
-                log_error "Hệ thống Linux không hỗ trợ (không tìm thấy apt hoặc yum)."
-            fi
-            ;;
-        Darwin)
-            if command -v brew >/dev/null 2>&1; then
-                log_info "$MSG_INSTALL_PYTHON_MAC"
-                show_progress "$MSG_INSTALL_PYTHON_MAC" 30
-                brew install python@3.12
-            else
-                log_error "Homebrew không được cài đặt. Vui lòng cài Homebrew trước: https://brew.sh/"
-            fi
-            ;;
-        *)
-            log_error "Hệ điều hành không được hỗ trợ: $OS"
-            ;;
-    esac
-
-    if command -v python3.12 >/dev/null 2>&1; then
-        PYTHON_CMD="python3.12"
-        log_info "$MSG_PYTHON_SUCCESS"
-        SUMMARY+=("Python 3.12: ${GREEN}${CHECKMARK}${NC}")
-    else
-        log_error "$MSG_PYTHON_FAIL"
-        SUMMARY+=("Python 3.12: ${RED}${CROSS}${NC}")
+    # Verify dependencies
+    if ! command -v curl >/dev/null 2>&1; then
+        log_error "curl not found. Please install curl from https://curl.se/download.html"
     fi
+    if ! command -v python3.12 >/dev/null 2>&1; then
+        log_error "Python 3.12 not found. Please install Python 3.12 from https://www.python.org/downloads/"
+    fi
+    if ! command -v git >/dev/null 2>&1; then
+        log_error "git not found. Please install git from https://git-scm.com/downloads"
+    fi
+    if ! command -v ollama >/dev/null 2>&1; then
+        log_error "Ollama not found. Please install Ollama from https://ollama.com/download"
+    fi
+    log_info "All dependencies confirmed."
+    SUMMARY+=("Dependencies: ${GREEN}${CHECKMARK}${NC}")
 }
 
 # Kiểm tra môi trường ảo
@@ -236,7 +147,7 @@ check_venv() {
         SUMMARY+=("Virtual Env: ${GREEN}${CHECKMARK}${NC}")
     else
         show_progress "$MSG_CREATE_VENV" 15
-        "$PYTHON_CMD" -m venv .venv || { log_error "$MSG_VENV_FAIL"; SUMMARY+=("Virtual Env: ${RED}${CROSS}${NC}"); }
+        python3.12 -m venv .venv || { log_error "$MSG_VENV_FAIL"; SUMMARY+=("Virtual Env: ${RED}${CROSS}${NC}"); }
         log_info "$MSG_CREATE_VENV"
         SUMMARY+=("Virtual Env: ${GREEN}${CHECKMARK}${NC}")
     fi
@@ -248,14 +159,6 @@ activate_venv() {
     source .venv/bin/activate || { log_error "$MSG_ACTIVATE_VENV_FAIL"; SUMMARY+=("Activate Venv: ${RED}${CROSS}${NC}"); }
     log_info "$MSG_ACTIVATE_VENV"
     SUMMARY+=("Activate Venv: ${GREEN}${CHECKMARK}${NC}")
-}
-
-# Cập nhật pip
-update_pip() {
-    show_progress "$MSG_UPDATE_PIP" 15
-    python -m pip install --upgrade pip || { log_error "$MSG_PIP_FAIL"; SUMMARY+=("Update pip: ${RED}${CROSS}${NC}"); }
-    log_info "$MSG_UPDATE_PIP"
-    SUMMARY+=("Update pip: ${GREEN}${CHECKMARK}${NC}")
 }
 
 # Tạo file requirements.txt
@@ -291,69 +194,16 @@ accelerate
 rich
 prompt_toolkit
 reportlab
-selenium
-webdriver-manager
 textual
 EOL
     log_info "$MSG_CREATE_REQS"
     SUMMARY+=("Requirements.txt: ${GREEN}${CHECKMARK}${NC}")
 }
 
-create_requirements_comfyui() {
-    show_progress "$MSG_CREATE_REQS_COMFYUI" 10
-    cat <<EOL > requirements-comfyui.txt
-comfyui-frontend-package==1.21.7
-comfyui-workflow-templates==0.1.25
-comfyui-embedded-docs==0.2.0
-torch
-torchsde
-torchvision
-torchaudio
-numpy>=1.25.0
-einops
-transformers>=4.28.1
-tokenizers>=0.13.3
-sentencepiece
-safetensors>=0.4.2
-aiohttp>=3.11.8
-yarl>=1.18.0
-pyyaml
-Pillow
-scipy
-tqdm
-psutil
-kornia>=0.7.1
-spandrel
-soundfile
-av>=14.2.0
-pydantic~=2.0
-EOL
-    log_info "$MSG_CREATE_REQS_COMFYUI"
-    SUMMARY+=("Requirements-Comfyui.txt: ${GREEN}${CHECKMARK}${NC}")
-}
-
 # Cài đặt các gói
 install_packages() {
-    # Clone ComfyUI repository
-    show_progress "$MSG_CLONE_COMFYUI" 20
-    mkdir -p modules
-    cd modules
-    if [ -d "ComfyUI" ]; then
-        log_info "ComfyUI repository already exists."
-        SUMMARY+=("ComfyUI Clone: ${GREEN}${CHECKMARK}${NC}")
-    else
-        git clone https://github.com/comfyanonymous/ComfyUI.git || { log_error "$MSG_CLONE_COMFYUI_FAIL"; SUMMARY+=("ComfyUI Clone: ${RED}${CROSS}${NC}"); }
-        log_info "$MSG_CLONE_COMFYUI"
-        SUMMARY+=("ComfyUI Clone: ${GREEN}${CHECKMARK}${NC}")
-    fi
-    cd ..
-
-    # Install packages
     show_progress "$MSG_INSTALL_REQS" 30
     pip install -U -r requirements.txt || { log_error "$MSG_REQS_FAIL"; SUMMARY+=("Packages: ${RED}${CROSS}${NC}"); }
-    log_info "Cài đặt PyTorch..."
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu128
-    pip install -U -r requirements-comfyui.txt || { log_error "$MSG_REQS_FAIL"; SUMMARY+=("Packages: ${RED}${CROSS}${NC}"); }
     log_info "$MSG_INSTALL_REQS"
     SUMMARY+=("Packages: ${GREEN}${CHECKMARK}${NC}")
 }
@@ -372,19 +222,14 @@ show_summary() {
     if [ -f "requirements.txt" ]; then
         rm -f "requirements.txt"
     fi
-    if [ -f "requirements-comfyui.txt" ]; then
-        rm -f "requirements-comfyui.txt"
-    fi
 }
 
 # Thực thi các bước
+check_os
 check_dependencies
-install_python
 check_venv
 activate_venv
-update_pip
 create_requirements
-create_requirements_comfyui
 install_packages
 show_summary
 

@@ -225,7 +225,7 @@ async def stream_response_deepthink(
     chat_ai_id: int = None,
     max_history_length: int = 10,
 ) -> AsyncGenerator[str, None]:
-    """Stream deepthink response using 4T-Thinker:latest and stream every chunk with current in_think state."""
+    """Stream deepthink response using 4T-Think:latest and stream every chunk with current in_think state."""
     try:
         from .history_manager import summarize_chat_history
 
@@ -272,7 +272,7 @@ async def stream_response_deepthink(
         else:
             full_messages = messages.copy()
 
-        payload = prepare_payload("4T-Thinker:latest", full_messages, temperature, max_tokens, top_p)
+        payload = prepare_payload("4T-Think:latest", full_messages, temperature, max_tokens, top_p)
         logger.debug("Sending deepthink response payload (context system + last user/assistant only)")
 
         # Stream every chunk with current in_think state

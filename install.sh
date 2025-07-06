@@ -208,7 +208,7 @@ install_packages() {
     SUMMARY+=("Packages: ${GREEN}${CHECKMARK}${NC}")
 }
 
-# Hàm hiển thị tóm tắt
+# Hàm  thị tóm tắt
 show_summary() {
     for item in "${SUMMARY[@]}"; do
         echo -e "${BLUE}│${NC} $item" >&3
